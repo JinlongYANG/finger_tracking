@@ -1,0 +1,16 @@
+<launch>
+	
+    <node pkg="rosbag" type="play" name="player" args="-r 0.05 -l $(find pixel_vo)/bags/kitti_05.bag"/>
+	<node name="slam" pkg="pixel_slam" type="slam"  output="screen" />
+    <node name="reconfigure_gui" pkg="rqt_reconfigure" type="rqt_reconfigure" />
+	<node name="image_view" pkg="rqt_image_view" type="rqt_image_view" respawn="false" output="screen" >
+                <remap from="image" to="output" />
+	</node>
+	<!--<node pkg="octomap_server" type="octomap_server_node" name="octomap_server"> 
+		<param name="resolution" value="1" />		
+		<param name="frame_id" type="string" value="world" />		
+		<param name="max_sensor_range" value="7.0" />	
+        <remap from="cloud_in" to="/pointCloud" />
+	</node> -->
+<node pkg="tf2_ros" type="static_transform_publisher" name="world2start" args="0 0 0 0 0.707  0.707 0 world start" />
+</launch>
