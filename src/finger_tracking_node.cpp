@@ -27,11 +27,10 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
 //    leftCameraInfoSubscriber_.subscribe(nh, "/kitty_stereo/left/camera_info", 10);
 //    rightCameraSubscriber_.subscribe(nh, "/kitty_stereo/right/image_rect", 10);
 //    rightCameraInfoSubscriber_.subscribe(nh, "/kitty_stereo/right/camera_info", 10);
-    rgbCameraSubscriber_.subscribe(nh, "/kitty_stereo/left/image_rect", 10);
-    rgbCameraInfoSubscriber_.subscribe(nh, "/kitty_stereo/left/camera_info", 10);
-    depthCameraSubscriber_.subscribe(nh, "/kitty_stereo/left/image_rect", 10);
-    depthCameraInfoSubscriber_.subscribe(nh, "/kitty_stereo/left/camera_info", 10);
-
+    rgbCameraSubscriber_.subscribe(nh, "/camera/rgb/image_rect_color", 10);
+    rgbCameraInfoSubscriber_.subscribe(nh, "/camera/rgb/camera_info", 10);
+    depthCameraSubscriber_.subscribe(nh, "/camera/depth_registered/image_raw", 10);
+    depthCameraInfoSubscriber_.subscribe(nh, "/camera/depth/camera_info", 10);
 
     
     timeSynchronizer_.connectInput(rgbCameraSubscriber_, depthCameraSubscriber_,rgbCameraInfoSubscriber_,depthCameraInfoSubscriber_);
@@ -56,48 +55,36 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
 //    }
 //}
 
-Mat candidateLeftImage,keyframeLeftImage;
-Mat candidateRightImage,keyframeRightImage;
-Eigen::Matrix4f candidateTransformation,keyframeTransformation;
-vector<KeyPoint> candidatestereomatchedKP,keyframestereomatchedKP;
-vector<Mat> candidateDescriptors;
-bool keyframe_flag= true;
-float distancetravelled =0.0;
-float anglerotated = 0.0;
-float inliers_ratio=0.0;
-Mat prev_t;
-Mat disparity_Map;
 
 
-void Finger_tracking_Node::syncedCallback(const ImageConstPtr& leftImage,const ImageConstPtr& rightImage, const CameraInfoConstPtr& leftInfo, const CameraInfoConstPtr& rightInfo){
+void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImage,const ImageConstPtr& cvpointer_depthImage, const CameraInfoConstPtr& cvpointer_rgbInfo, const CameraInfoConstPtr& cvpointer_depthInfo){
     
     
     
-    cv_bridge::CvImagePtr leftFrame, rightFrame;
-    Mat leftGreyImage,rightGreyImage,  img_matches;
+    cv_bridge::CvImagePtr cvpointer_rgbFrame, cvpointer_depthFrame;
+    Mat RGBImage,DepthImage;
     pcl::PointCloud<pcl::PointXYZRGB> cloud;
     
 
 
     try
     {
-//        //Always copy, returning a mutable CvImage
-//        //OpenCV expects color images to use BGR channel order.
-//        leftFrame = cv_bridge::toCvCopy(leftImage);
-//        rightFrame = cv_bridge::toCvCopy(rightImage);
+        //Always copy, returning a mutable CvImage
+        //OpenCV expects color images to use BGR channel order.
+        cvpointer_rgbFrame = cv_bridge::toCvCopy(cvpointer_rgbImage);
+        cvpointer_depthFrame = cv_bridge::toCvCopy(cvpointer_depthImage);
         
-//        //************* Chapter 1 Image preparation *****************//
-//        ///////////////////////////////////////////////////////////////
+
+        int seq = cvpointer_rgbInfo->header.seq;
+
         
-//        seq = leftInfo->header.seq;
-//        if (seq>(lastSeq+1)) {
-//            ROS_WARN("Dropped %ld frames",seq-(lastSeq+1));
-//            //firstframe_flag_ = true;
-//        }
-        
-//        ROS_INFO("current image seq: %d ",leftInfo->header.seq);
-//        leftGreyImage=leftFrame->image;
-//        rightGreyImage=rightFrame->image;
+        ROS_INFO("current image seq: %d ",cvpointer_rgbInfo->header.seq);
+        RGBImage=cvpointer_rgbFrame->image;
+        DepthImage=cvpointer_depthFrame->image;
+
+        cv::imshow("RGB Image", RGBImage);
+        cv::imshow("Depth Image", DepthImage);
+        cv::waitKey();
         
         
 //        //************* Chapter 2 Stereo Matching *********************//

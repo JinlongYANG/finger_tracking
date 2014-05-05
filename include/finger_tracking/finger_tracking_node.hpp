@@ -74,7 +74,7 @@ public:
     
     Finger_tracking_Node(ros::NodeHandle& nh);
     //void updateConfig(finger_tracking::finger_tracking_Config &config, uint32_t level);
-    void syncedCallback(const ImageConstPtr& leftImage,const ImageConstPtr& rightImage, const CameraInfoConstPtr& leftInfo, const CameraInfoConstPtr& rightInfo);
+    void syncedCallback(const ImageConstPtr& cvpointer_rgbImage,const ImageConstPtr& cvpointer_depthImage, const CameraInfoConstPtr& cvpointer_rgbInfo, const CameraInfoConstPtr& cvpointer_depthInfo);
     
 };
 #endif
