@@ -11,6 +11,7 @@
 #include <boost/shared_ptr.hpp>
 #include <message_filters/subscriber.h>
 #include <message_filters/time_synchronizer.h>
+#include <message_filters/sync_policies/approximate_time.h>
 #include <image_transport/image_transport.h>
 #include <sensor_msgs/image_encodings.h>
 #include <sensor_msgs/CameraInfo.h>
@@ -35,6 +36,7 @@
 //#include "finger_tracking/finger_tracking_Config.h"
 #include "finger_tracking/finger_tracking.hpp"
 
+
 using namespace image_transport;
 using namespace sensor_msgs;
 using namespace geometry_msgs;
@@ -49,7 +51,9 @@ class Finger_tracking_Node
 private:
     image_transport::ImageTransport imageTransport_;
     image_transport::Publisher publisher_;
-    message_filters::TimeSynchronizer<Image, Image,CameraInfo,CameraInfo> timeSynchronizer_;
+
+    typedef message_filters::sync_policies::ApproximateTime<Image, Image,CameraInfo,CameraInfo> MySyncPolicy;
+    message_filters::Synchronizer<MySyncPolicy> timeSynchronizer_;
     message_filters::Subscriber<Image>  rgbCameraSubscriber_;
     message_filters::Subscriber<Image> depthCameraSubscriber_;
     message_filters::Subscriber<CameraInfo> rgbCameraInfoSubscriber_;
@@ -65,11 +69,8 @@ public:
     geometry_msgs::TransformStamped transformStamped_;
     
     boost::shared_ptr<Finger_tracking> finger_tracking_;
-    cv::Ptr<cv::FeatureDetector> detector_;
-    FREAK extractor_;
 
     ros::Publisher cloud_pub_;
-    
     
     
     Finger_tracking_Node(ros::NodeHandle& nh);

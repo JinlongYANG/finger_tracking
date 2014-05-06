@@ -23,14 +23,11 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
     transformListener_(buffer_, true)
     //reconfigureCallback_(boost::bind(&finger_tracking_Node::updateConfig, this, _1, _2))
 {
-//    leftCameraSubscriber_.subscribe(nh, "/kitty_stereo/left/image_rect", 10);
-//    leftCameraInfoSubscriber_.subscribe(nh, "/kitty_stereo/left/camera_info", 10);
-//    rightCameraSubscriber_.subscribe(nh, "/kitty_stereo/right/image_rect", 10);
-//    rightCameraInfoSubscriber_.subscribe(nh, "/kitty_stereo/right/camera_info", 10);
-    rgbCameraSubscriber_.subscribe(nh, "/camera/rgb/image_rect_color", 10);
-    rgbCameraInfoSubscriber_.subscribe(nh, "/camera/rgb/camera_info", 10);
-    depthCameraSubscriber_.subscribe(nh, "/camera/depth_registered/image_raw", 10);
-    depthCameraInfoSubscriber_.subscribe(nh, "/camera/depth/camera_info", 10);
+
+    rgbCameraSubscriber_.subscribe(nh, "/camera/rgb/image_rect_color", 1);
+    rgbCameraInfoSubscriber_.subscribe(nh, "/camera/rgb/camera_info", 1);
+    depthCameraSubscriber_.subscribe(nh, "/camera/depth_registered/image_raw", 1);
+    depthCameraInfoSubscriber_.subscribe(nh, "/camera/depth/camera_info", 1);
 
     
     timeSynchronizer_.connectInput(rgbCameraSubscriber_, depthCameraSubscriber_,rgbCameraInfoSubscriber_,depthCameraInfoSubscriber_);
@@ -41,7 +38,6 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
     
     timeSynchronizer_.registerCallback(boost::bind(&Finger_tracking_Node::syncedCallback, this, _1, _2,_3,_4));
     //reconfigureServer_.setCallback(reconfigureCallback_);
-
 
 
 }
@@ -61,30 +57,30 @@ void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImag
     
     
     
-    cv_bridge::CvImagePtr cvpointer_rgbFrame, cvpointer_depthFrame;
-    Mat RGBImage,DepthImage;
-    pcl::PointCloud<pcl::PointXYZRGB> cloud;
+//    cv_bridge::CvImagePtr cvpointer_rgbFrame, cvpointer_depthFrame;
+//    Mat RGBImage,DepthImage;
+//    pcl::PointCloud<pcl::PointXYZRGB> cloud;
     
-
+    ROS_INFO("Here");
 
     try
     {
         //Always copy, returning a mutable CvImage
         //OpenCV expects color images to use BGR channel order.
-        cvpointer_rgbFrame = cv_bridge::toCvCopy(cvpointer_rgbImage);
-        cvpointer_depthFrame = cv_bridge::toCvCopy(cvpointer_depthImage);
+//        cvpointer_rgbFrame = cv_bridge::toCvCopy(cvpointer_rgbImage);
+//        cvpointer_depthFrame = cv_bridge::toCvCopy(cvpointer_depthImage);
         
 
-        int seq = cvpointer_rgbInfo->header.seq;
+//        int seq = cvpointer_rgbInfo->header.seq;
 
         
-        ROS_INFO("current image seq: %d ",cvpointer_rgbInfo->header.seq);
-        RGBImage=cvpointer_rgbFrame->image;
-        DepthImage=cvpointer_depthFrame->image;
+//        ROS_INFO("current image seq: %d ",cvpointer_rgbInfo->header.seq);
+//        RGBImage=cvpointer_rgbFrame->image;
+//        DepthImage=cvpointer_depthFrame->image;
 
-        cv::imshow("RGB Image", RGBImage);
-        cv::imshow("Depth Image", DepthImage);
-        cv::waitKey();
+//        cv::imshow("RGB Image", RGBImage);
+//        cv::imshow("Depth Image", DepthImage);
+//        cv::waitKey();
         
         
 //        //************* Chapter 2 Stereo Matching *********************//
