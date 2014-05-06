@@ -1,6 +1,7 @@
 #define BOOST_SIGNALS_NO_DEPRECATION_WARNING
 #include "finger_tracking/finger_tracking_node.hpp"
-
+#include <pcl_ros/point_cloud.h>
+#include <pcl/point_types.h>
 #include <math.h>
 
 #define PI 3.14159265
@@ -18,7 +19,7 @@ using namespace tf2;
 
 Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
     imageTransport_(nh),
-    timeSynchronizer_(4),
+    timeSynchronizer_(10),
     //reconfigureServer_(ros::NodeHandle(nh,"finger_tracking")),
     transformListener_(buffer_, true)
   //reconfigureCallback_(boost::bind(&finger_tracking_Node::updateConfig, this, _1, _2))
@@ -28,16 +29,18 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
     rgbCameraInfoSubscriber_.subscribe(nh, "/camera/rgb/camera_info", 1);
     depthCameraSubscriber_.subscribe(nh, "/camera/depth_registered/image_raw", 1);
     depthCameraInfoSubscriber_.subscribe(nh, "/camera/depth/camera_info", 1);
+    pointCloud2_.subscribe(nh, "/camera/depth/points", 1);
+    leapMotion_.subscribe(nh, "/camera/depth/points",1);
 
     
-    timeSynchronizer_.connectInput(rgbCameraSubscriber_, depthCameraSubscriber_,rgbCameraInfoSubscriber_,depthCameraInfoSubscriber_);
+    timeSynchronizer_.connectInput(rgbCameraSubscriber_, depthCameraSubscriber_,rgbCameraInfoSubscriber_,depthCameraInfoSubscriber_, pointCloud2_, leapMotion_);
 
     bgrImagePublisher_ = imageTransport_.advertise("BGR_Image", 1);
     depthImagePublisher_ = imageTransport_.advertise("Depth_Image", 1);
     cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("pointCloud",1);
     
     
-    timeSynchronizer_.registerCallback(boost::bind(&Finger_tracking_Node::syncedCallback, this, _1, _2,_3,_4));
+    timeSynchronizer_.registerCallback(boost::bind(&Finger_tracking_Node::syncedCallback, this, _1, _2, _3, _4, _5, _6));
     //reconfigureServer_.setCallback(reconfigureCallback_);
 
 
@@ -53,9 +56,7 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
 //}
 
 
-
-void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImage,const ImageConstPtr& cvpointer_depthImage, const CameraInfoConstPtr& cvpointer_rgbInfo, const CameraInfoConstPtr& cvpointer_depthInfo){
-    
+void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImage,const ImageConstPtr& cvpointer_depthImage, const CameraInfoConstPtr& cvpointer_rgbInfo, const CameraInfoConstPtr& cvpointer_depthInfo, const PointCloud2ConstPtr& pclpointer_pointCloud2, const leap_msgs::Leap::ConstPtr& ptr_leap){
     
     
     cv_bridge::CvImagePtr cvpointer_rgbFrame, cvpointer_depthFrame;
