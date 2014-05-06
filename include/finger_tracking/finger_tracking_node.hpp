@@ -51,6 +51,8 @@ class Finger_tracking_Node
 private:
     image_transport::ImageTransport imageTransport_;
     image_transport::Publisher publisher_;
+    image_transport::Publisher depthImagePublisher_;
+    image_transport::Publisher bgrImagePublisher_;
 
     typedef message_filters::sync_policies::ApproximateTime<Image, Image,CameraInfo,CameraInfo> MySyncPolicy;
     message_filters::Synchronizer<MySyncPolicy> timeSynchronizer_;
