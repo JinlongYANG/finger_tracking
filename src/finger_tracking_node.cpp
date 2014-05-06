@@ -57,30 +57,30 @@ void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImag
     
     
     
-//    cv_bridge::CvImagePtr cvpointer_rgbFrame, cvpointer_depthFrame;
-//    Mat RGBImage,DepthImage;
-//    pcl::PointCloud<pcl::PointXYZRGB> cloud;
+    cv_bridge::CvImagePtr cvpointer_rgbFrame, cvpointer_depthFrame;
+    Mat BGRImage,DepthImage;
+    pcl::PointCloud<pcl::PointXYZRGB> cloud;
     
     ROS_INFO("Here");
 
     try
     {
-        //Always copy, returning a mutable CvImage
         //OpenCV expects color images to use BGR channel order.
-//        cvpointer_rgbFrame = cv_bridge::toCvCopy(cvpointer_rgbImage);
-//        cvpointer_depthFrame = cv_bridge::toCvCopy(cvpointer_depthImage);
+        cvpointer_rgbFrame = cv_bridge::toCvCopy(cvpointer_rgbImage);
+        cvpointer_depthFrame = cv_bridge::toCvCopy(cvpointer_depthImage);
         
 
-//        int seq = cvpointer_rgbInfo->header.seq;
+        int seq = cvpointer_rgbInfo->header.seq;
 
         
-//        ROS_INFO("current image seq: %d ",cvpointer_rgbInfo->header.seq);
-//        RGBImage=cvpointer_rgbFrame->image;
-//        DepthImage=cvpointer_depthFrame->image;
+        ROS_INFO("current image seq: %d ",cvpointer_rgbInfo->header.seq);
+        BGRImage=cvpointer_rgbFrame->image;
+        cvtColor( BGRImage, BGRImage, CV_RGB2BGR );
+        DepthImage=cvpointer_depthFrame->image;
 
-//        cv::imshow("RGB Image", RGBImage);
-//        cv::imshow("Depth Image", DepthImage);
-//        cv::waitKey();
+        cv::imshow("RGB Image", BGRImage);
+        cv::imshow("Depth Image", DepthImage);
+        cv::waitKey();
         
         
 //        //************* Chapter 2 Stereo Matching *********************//
