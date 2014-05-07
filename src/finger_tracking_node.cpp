@@ -1,6 +1,7 @@
 #define BOOST_SIGNALS_NO_DEPRECATION_WARNING
 #include "finger_tracking/finger_tracking_node.hpp"
 #include "finger_tracking/handkp_leap_msg.h"
+#include "finger_tracking/Hand_XYZRGB.h"
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
 #include <math.h>
@@ -15,33 +16,37 @@ using namespace cv;
 using namespace image_geometry;
 using namespace pcl;
 using namespace Eigen;
-using namespace tf2;
+//using namespace tf2;
+
+float max_depth = 1.5;
+float min_depth = 0.3;
 
 
 Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
     imageTransport_(nh),
-    timeSynchronizer_(4),
-    //reconfigureServer_(ros::NodeHandle(nh,"finger_tracking")),
-    transformListener_(buffer_, true)
+    timeSynchronizer_(10)
+  //reconfigureServer_(ros::NodeHandle(nh,"finger_tracking")),
+  //transformListener_(buffer_, true)
   //reconfigureCallback_(boost::bind(&finger_tracking_Node::updateConfig, this, _1, _2))
 {
 
-    rgbCameraSubscriber_.subscribe(nh, "/camera/rgb/image_rect_color", 1);
-    rgbCameraInfoSubscriber_.subscribe(nh, "/camera/rgb/camera_info", 1);
-    depthCameraSubscriber_.subscribe(nh, "/camera/depth_registered/image_raw", 1);
-    depthCameraInfoSubscriber_.subscribe(nh, "/camera/depth/camera_info", 1);
-    pointCloud2_.subscribe(nh, "/camera/depth_registered/points", 1);
-    //pointCloud2_.subscribe(nh, "/camera/depth_registered/points", 1);
+    rgbCameraSubscriber_.subscribe(nh, "/camera/rgb/image_rect_color", 5);
+    rgbCameraInfoSubscriber_.subscribe(nh, "/camera/rgb/camera_info", 5);
+    depthCameraSubscriber_.subscribe(nh, "/camera/depth_registered/image_raw", 5);
+    depthCameraInfoSubscriber_.subscribe(nh, "/camera/depth/camera_info", 5);
+    pointCloud2_.subscribe(nh, "/camera/depth/points", 5);
+    //pointCloud2_.subscribe(nh, "/camera/depth_registered/points", 5);
     leapMotion_.subscribe(nh, "/leap_data",1);
 
-    
+
     timeSynchronizer_.connectInput(rgbCameraSubscriber_, depthCameraSubscriber_,rgbCameraInfoSubscriber_,depthCameraInfoSubscriber_, pointCloud2_, leapMotion_);
 
     bgrImagePublisher_ = imageTransport_.advertise("BGR_Image", 1);
     depthImagePublisher_ = imageTransport_.advertise("Depth_Image", 1);
     cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("Hand_pcl",1);
-    
-    
+    hkp_cloud_pub_ = nh.advertise<sensor_msgs::PointCloud2>("Hand_kp_cl",1);
+
+    ROS_INFO("Here");
     timeSynchronizer_.registerCallback(boost::bind(&Finger_tracking_Node::syncedCallback, this, _1, _2, _3, _4, _5, _6));
     //reconfigureServer_.setCallback(reconfigureCallback_);
 
@@ -59,26 +64,28 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
 
 
 void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImage,const ImageConstPtr& cvpointer_depthImage, const CameraInfoConstPtr& cvpointer_rgbInfo, const CameraInfoConstPtr& cvpointer_depthInfo, const PointCloud2ConstPtr& pclpointer_pointCloud2, const leap_msgs::Leap::ConstPtr& ptr_leap){
-    
-    
+
+
     cv_bridge::CvImagePtr cvpointer_rgbFrame, cvpointer_depthFrame;
     Mat BGRImage,DepthImage, DepthMat;
 
-    //pcl::PointCloud<pcl::PointXYZRGB> handcloud;
-    pcl::PointCloud<pcl::PointXYZ> handcloud;
-    
+    pcl::PointCloud<pcl::PointXYZ> msg_pcl;
+    pcl::PointCloud<pcl::PointXYZRGB> handcloud, hand1_kpt, hand2_kpt;
+
+    HandKeyPoints hand_kpt;
+    Hand_XYZRGB hand1_XYZRGB, hand2_XYZRGB;
+
+
     ROS_INFO("Callback begins");
 
     try
     {
-        //OpenCV expects color images to use BGR channel order.
-        cvpointer_rgbFrame = cv_bridge::toCvCopy(cvpointer_rgbImage);
-        cvpointer_depthFrame = cv_bridge::toCvCopy(cvpointer_depthImage);
-        
-
         int seq = cvpointer_rgbInfo->header.seq;
 
-        
+        /*******************   get color image and depth image    *******************/
+        cvpointer_rgbFrame = cv_bridge::toCvCopy(cvpointer_rgbImage);
+        cvpointer_depthFrame = cv_bridge::toCvCopy(cvpointer_depthImage);
+
         ROS_INFO("current image seq: %d ",cvpointer_rgbInfo->header.seq);
         BGRImage=cvpointer_rgbFrame->image;
         cvtColor( BGRImage, BGRImage, CV_RGB2BGR);
@@ -86,10 +93,71 @@ void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImag
         /*maximum depth: 3m*/
         DepthImage = DepthMat*0.33;
 
-        fromROSMsg(*pclpointer_pointCloud2, handcloud);
+        /*******************   read in the leapmotion data   *******************/
+        hand_kpt.set_Leap_Msg(ptr_leap);
+        if(hand_kpt.hands_count != 0){
+            std::cout<< hand_kpt.hands_count<<std::endl;
+            hand1_XYZRGB.palm_center.x = hand_kpt.hand_position.at(0).x/1000.0;
+            hand1_XYZRGB.palm_center.y = hand_kpt.hand_position.at(0).y/1000.0;
+            hand1_XYZRGB.palm_center.z = hand_kpt.hand_position.at(0).z/1000.0;
+            uint8_t r1 = 0, g1 = 255, b1 = 0;
+            uint32_t rgb1 = ((uint32_t)r1 << 16 | (uint32_t)g1 << 8 | (uint32_t)b1);
+            hand1_XYZRGB.palm_center.rgb = *reinterpret_cast<float*>(&rgb1);
+            std::cout<<"hand1: palm center: "<<hand1_XYZRGB.palm_center.x<<" "<<hand1_XYZRGB.palm_center.y << " " << hand1_XYZRGB.palm_center.z<<std::endl;
 
+            pcl::PointXYZRGB h1_fingertips;
+            for(size_t i = 0; i < hand_kpt.fingertip_position.size ()/* && i < 5*/; ++i){
+                h1_fingertips.x = hand_kpt.fingertip_position.at(i).x/1000.0;
+                h1_fingertips.y = hand_kpt.fingertip_position.at(i).y/1000.0;
+                h1_fingertips.z = hand_kpt.fingertip_position.at(i).z/1000.0;
+                uint8_t rf = 0, gf = 150, bf = 150;
+                uint32_t rgbf = ((uint32_t)rf << 16 | (uint32_t)gf << 8 | (uint32_t)bf);
+                h1_fingertips.rgb = *reinterpret_cast<float*>(&rgbf);
+                hand1_XYZRGB.fingertip_position.push_back(h1_fingertips);
 
+            }
 
+            if(hand_kpt.hands_count > 1){
+                hand2_XYZRGB.palm_center.x = hand_kpt.hand_position.at(1).x/1000.0;
+                hand2_XYZRGB.palm_center.y = hand_kpt.hand_position.at(1).y/1000.0;
+                hand2_XYZRGB.palm_center.z = hand_kpt.hand_position.at(1).z/1000.0;
+                uint8_t r2 = 0, g2 = 255, b2 = 0;
+                uint32_t rgb2 = ((uint32_t)r2 << 16 | (uint32_t)g2 << 8 | (uint32_t)b2);
+                hand2_XYZRGB.palm_center.rgb = *reinterpret_cast<float*>(&rgb2);
+                std::cout<<"hand2: palm center: "<<hand2_XYZRGB.palm_center.x<<" "<<hand2_XYZRGB.palm_center.y << " " << hand2_XYZRGB.palm_center.z<<std::endl;
+            }
+        }
+
+        /*******************   Leap motion to Xtion coordinate transform   *******************/
+        if(hand_kpt.hands_count != 0){
+            hand1_kpt.push_back(hand1_XYZRGB.palm_center);
+
+            std::cout<<"Palm center: "<<hand1_kpt.at(0).x<<" "<<hand1_kpt.at(0).y << " " << hand1_kpt.at(0).z<<std::endl;
+            for(size_t i = 0; i < hand1_XYZRGB.fingertip_position.size(); ++i){
+                hand1_kpt.push_back(hand1_XYZRGB.fingertip_position.at(i));
+                std::cout<<"finger "<<i<<": "<<hand1_kpt.at(i).x<<" "<<hand1_kpt.at(i).y << " " << hand1_kpt.at(i).z<<std::endl;
+            }
+            std::cout<<"Size: "<<hand1_kpt.size()<<std::endl;
+
+            /*******************   get point cloud    *******************/
+            fromROSMsg(*pclpointer_pointCloud2, msg_pcl);
+
+            std::cout<<msg_pcl.points.size()<<std::endl;}
+
+        /*******************   segment hand from the point cloud   *******************/
+        pcl::PointXYZRGB p;
+        uint8_t r = 255, g = r, b = r;
+        uint32_t rgb = ((uint32_t)r << 16 | (uint32_t)g << 8 | (uint32_t)b);
+
+        for (size_t i = 0; i < msg_pcl.points.size (); ++i){
+            if(msg_pcl.points[i].z < max_depth && msg_pcl.points[i].z > min_depth){
+                p.rgb = *reinterpret_cast<float*>(&rgb);
+                p.x = msg_pcl.points[i].x;
+                p.y = msg_pcl.points[i].y;
+                p.z = msg_pcl.points[i].z;
+                handcloud.push_back(p);
+            }
+        }
 
 
 
@@ -98,21 +166,21 @@ void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImag
         //        cv::imshow("RGB Image", BGRImage);
         //        cv::imshow("Depth Image", DepthImage);
         //        cv::waitKey();
-        
+
         //___________________________________________________________________________
         //        //************* Chapter 2 Stereo Matching *********************//
         //        /////////////////////////////////////////////////////////////////
         //        vector<KeyPoint> matchedkeyPoints_inleft, matchedkeyPoints_inright;
         //        //ROS_INFO("min:%f, max:%f", min_disparity_, max_disparity_);
-        
+
         //        vector<KeyPoint> keyPoints_inleft, keyPoints_inright;
         //        //1. get keypoints of both left and right image:
-        
-        
+
+
         //        //ROS_INFO("%ld left keypoints", keyPoints_inleft.size());
         //        //ROS_INFO("%ld right keypoints", keyPoints_inright.size());
-        
-        
+
+
         //        if(firstframe_flag_ == true){
 
         //            detector_->detect(leftGreyImage,keyPoints_inleft);
@@ -403,17 +471,17 @@ void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImag
 
 
 
-        
+
         //        //publish pointCloud
         //        sensor_msgs::PointCloud2 cloud_msg;
         //        toROSMsg(cloud,cloud_msg);
         //        cloud_msg.header.frame_id=stereoCameraModel_.tfFrame();//leftInfo->header.frame_id;
         //        cloud_pub_.publish(cloud_msg);
-        
+
         //________________________________________________________________________________________________________________
-        
-        
-        //Convert the CvImage to a ROS image message and publish it to topics.
+
+
+        /*******************   Convert the CvImage to a ROS image message and publish it to topics.   *******************/
         cv_bridge::CvImage bgrImage_msg;
         bgrImage_msg.encoding = sensor_msgs::image_encodings::BGR8;
         bgrImage_msg.image    = BGRImage;
@@ -430,16 +498,24 @@ void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImag
         depthImage_msg.header.stamp = ros::Time::now();
         depthImagePublisher_.publish(depthImage_msg.toImageMsg());
 
-        //publish pointCloud
+        /*******************   publish pointCloud   *******************/
         sensor_msgs::PointCloud2 cloud_msg;
         toROSMsg(handcloud,cloud_msg);
         cloud_msg.header.frame_id=cvpointer_depthInfo->header.frame_id;
         cloud_pub_.publish(cloud_msg);
 
+        sensor_msgs::PointCloud2 hand1_kpt_msg;
+        toROSMsg(hand1_kpt,hand1_kpt_msg);
+        hand1_kpt_msg.header.frame_id=cvpointer_depthInfo->header.frame_id;
+        hkp_cloud_pub_.publish(hand1_kpt_msg);
+
+        /*******************   clear data   *******************/
+        hand_kpt.Clear();
+
 
         ROS_INFO("One callback done");
-        
-        
+
+
     }
     catch (std::exception& e)
     {
@@ -447,5 +523,5 @@ void Finger_tracking_Node::syncedCallback(const ImageConstPtr& cvpointer_rgbImag
         ROS_ERROR("cv_bridge exception: %s", e.what());
         return;
     }
-    
+
 }

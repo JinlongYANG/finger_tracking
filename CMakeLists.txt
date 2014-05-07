@@ -41,6 +41,8 @@ include_directories(SYSTEM ${OpenCV_INCLUDE_DIRS} )
 add_executable(finger_tracking
 	src/finger_tracking_main.cpp
 	src/finger_tracking_node.cpp
+	src/handkp_leap_msg.cpp
+	src/Hand_XYZRGB.cpp
 )
 
 
