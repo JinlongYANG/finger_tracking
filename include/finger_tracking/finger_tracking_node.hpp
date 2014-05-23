@@ -34,6 +34,7 @@
 //#include "finger_tracking/finger_tracking_Config.h"
 #include "finger_tracking/finger_tracking.hpp"
 #include <leap_msgs/Leap.h>
+#include <cstdio>
 
 
 
@@ -44,44 +45,174 @@ using namespace cv;
 using namespace image_geometry;
 using namespace pcl;
 using namespace Eigen;
+using namespace std;
 
 
 class Finger_tracking_Node
 {
 private:
     image_transport::ImageTransport imageTransport_;
-    image_transport::Publisher publisher_;
-    image_transport::Publisher depthImagePublisher_;
-    image_transport::Publisher bgrImagePublisher_;
+    image_transport::Publisher depthpublisher_;
+    image_transport::Publisher segmentpublisher_;
 
+    message_filters::TimeSynchronizer<PointCloud2, PointCloud2> timeSynchronizer_;
+    message_filters::Subscriber<PointCloud2> hand_kp_Subscriber_;
+    message_filters::Subscriber<PointCloud2> hand_Subscriber_;
 
-    typedef message_filters::sync_policies::ApproximateTime<Image, Image,CameraInfo,CameraInfo, PointCloud2, leap_msgs::Leap> MySyncPolicy;
-    message_filters::Synchronizer<MySyncPolicy> timeSynchronizer_;
-    message_filters::Subscriber<Image>  rgbCameraSubscriber_;
-    message_filters::Subscriber<Image> depthCameraSubscriber_;
-    message_filters::Subscriber<CameraInfo> rgbCameraInfoSubscriber_;
-    message_filters::Subscriber<CameraInfo> depthCameraInfoSubscriber_;
-    message_filters::Subscriber<PointCloud2> pointCloud2_;
-    message_filters::Subscriber<leap_msgs::Leap> leapMotion_;
-//    dynamic_reconfigure::Server<finger_tracking::finger_tracking_Config> reconfigureServer_;
-//    dynamic_reconfigure::Server<finger_tracking::finger_tracking_Config>::CallbackType reconfigureCallback_;
+    //    dynamic_reconfigure::Server<finger_tracking::finger_tracking_Config> reconfigureServer_;
+    //    dynamic_reconfigure::Server<finger_tracking::finger_tracking_Config>::CallbackType reconfigureCallback_;
 
 public:
-//    tf2_ros::TransformBroadcaster transformBroadcaster_;
-//    tf2_ros::Buffer buffer_;
-//    tf2_ros::TransformListener transformListener_;
+    //    tf2_ros::TransformBroadcaster transformBroadcaster_;
+    //    tf2_ros::Buffer buffer_;
+    //    tf2_ros::TransformListener transformListener_;
     
-    geometry_msgs::TransformStamped transformStamped_;
-    
+    ros::Publisher articulatePublisher_;
     boost::shared_ptr<Finger_tracking> finger_tracking_;
 
-    ros::Publisher cloud_pub_;
-    ros::Publisher hkp_cloud_pub_;
-    
-    
+
     Finger_tracking_Node(ros::NodeHandle& nh);
     //void updateConfig(finger_tracking::finger_tracking_Config &config, uint32_t level);
-    void syncedCallback(const ImageConstPtr& cvpointer_rgbImage,const ImageConstPtr& cvpointer_depthImage, const CameraInfoConstPtr& cvpointer_rgbInfo, const CameraInfoConstPtr& cvpointer_depthInfo, const PointCloud2ConstPtr& pclpointer_pointCloud2, const leap_msgs::Leap::ConstPtr& ptr_leap);
-    
+    void syncedCallback(const PointCloud2ConstPtr& hand_kp_pter, const PointCloud2ConstPtr& hand_pter);
+
+    void segment(Mat source, Mat & output, pcl::PointCloud<pcl::PointXYZRGB> hand_kp, int resolution, Mat & markers){
+        int palmcenter_row = source.rows/2;
+        int palmcenter_col = palmcenter_row;
+        int palm_radius = 45/resolution;
+        std::cout<<"palm_radius: "<<palm_radius<<std::endl;
+        int count = 0;
+        float temp_row = 0, temp_col = 0;
+        //Step 1: local center of palm(initialization is in the center of image)
+        for(int i = 0; i < 9; i++){
+            for(int row_shift = -palm_radius; row_shift <= palm_radius; row_shift++){
+                for(int col_shift = -palm_radius; col_shift <= palm_radius; col_shift++){
+                    if(row_shift*row_shift+col_shift*col_shift <= palm_radius*palm_radius
+                            &&
+                            source.at<unsigned char>(palmcenter_row+row_shift, palmcenter_col+col_shift)!=0){
+                        temp_row += palmcenter_row+row_shift;
+                        temp_col += palmcenter_col+col_shift;
+                        count++;
+                    }
+                }
+            }
+            palmcenter_row = temp_row/count;
+            palmcenter_col = temp_col/count;
+            temp_row = 0;
+            temp_col = 0;
+            count = 0;
+        }
+        //Step 2: find the palm, set it as gree
+        std::cout<<"palm_center: "<<palmcenter_row<<", "<<palmcenter_col<<std::endl;
+
+        for(int row_shift = -palm_radius; row_shift <= palm_radius; row_shift++){
+            for(int col_shift = -palm_radius; col_shift <= palm_radius; col_shift++){
+                if(row_shift*row_shift+col_shift*col_shift <= palm_radius*palm_radius
+                        &&
+                        source.at<unsigned char>(palmcenter_row+row_shift, palmcenter_col+col_shift)!=0){
+                    source.at<unsigned char>(palmcenter_row+row_shift, palmcenter_col+col_shift) = 0;
+                    output.at<unsigned char>(palmcenter_row+row_shift, (palmcenter_col+col_shift)*3+1) = 128;
+                }
+            }
+        }
+
+        markers.at<int>(palmcenter_row, palmcenter_col) = 255;
+        output.at<unsigned char>(palmcenter_row, palmcenter_col*3+1) = 255;
+
+        //Step 3: find fingers
+
+
+        //Step 3.1 read and locate fingertips positions
+        int finger_positions[3][5] = {};
+        for(int i = 1; i < hand_kp.points.size (); ++i){
+            //row
+            finger_positions[0][i-1] = int(hand_kp.points[i].y * 1000)/resolution + source.rows/2;
+            //col
+            finger_positions[1][i-1] = int(hand_kp.points[i].x * 1000)/resolution + source.cols/2;
+            //value
+            finger_positions[2][i-1] = int(hand_kp.points[i].z * 1000)/resolution + source.cols/2;
+
+             output.at<unsigned char>(finger_positions[0][i-1],3*finger_positions[1][i-1]) = 255;
+
+        }
+        //Step 3.2 find nearest point on source/on depth image
+        int max_distance = 20/resolution;
+        int temp_distance = 20/resolution;
+        int fingertip_onDepthImg[2][5] = {};
+
+        for(int i = 0; i< 5; i++){
+            if(finger_positions[2][i]!=0){
+                for(int row_shift = -max_distance; row_shift <= max_distance; row_shift++){
+                    for(int col_shift = -max_distance; col_shift <= max_distance; col_shift++){
+                        if(row_shift*row_shift+col_shift*col_shift <= max_distance*max_distance
+                                &&
+                                (source.at<unsigned char>(finger_positions[0][i]+row_shift, finger_positions[1][i]+col_shift)-finger_positions[2][i])*(source.at<unsigned char>(finger_positions[0][i]+row_shift, finger_positions[1][i]+col_shift)-finger_positions[2][i])+
+                                row_shift*row_shift+col_shift*col_shift <= temp_distance*temp_distance
+                                &&
+                                source.at<unsigned char>(finger_positions[0][i]+row_shift, finger_positions[1][i]+col_shift) != 0){
+                            temp_distance = (source.at<unsigned char>(finger_positions[0][i]+row_shift, finger_positions[1][i]+col_shift)-finger_positions[2][i])*(source.at<unsigned char>(finger_positions[0][i]+row_shift, finger_positions[1][i]+col_shift)-finger_positions[2][i])+
+                                    row_shift*row_shift+col_shift*col_shift;
+                            temp_row = finger_positions[0][i]+row_shift;
+                            temp_col = finger_positions[1][i]+col_shift;
+                        }
+                    }
+                }
+                fingertip_onDepthImg[0][i] = temp_row;
+                fingertip_onDepthImg[1][i] = temp_col;
+                output.at<unsigned char>(temp_row, temp_col*3+1) = 255;
+                //
+                markers.at<int>(temp_row,temp_col) = i*50+50;
+                temp_distance = 20/resolution;
+            }
+        }
+
+        //Step 3.3 watershed to find fingers
+
+        Mat binary_Img;
+        binary_Img = Mat::zeros(source.rows,source.cols,CV_8UC1);
+        threshold(source, binary_Img, 1, 255, THRESH_BINARY);
+
+        Mat dilate_binary_Img;
+        dilate(binary_Img,dilate_binary_Img, Mat(), cv::Point(-1,-1), 2);
+        dilate_binary_Img = 255-dilate_binary_Img;
+
+        markers.convertTo(markers, CV_8UC1);
+        markers += dilate_binary_Img;
+        imshow("markers", markers);
+        markers.convertTo(markers, CV_32SC1);
+
+        Mat source_3C;
+        source_3C = Mat::zeros(source.rows,source.cols,CV_8UC3);
+        cvtColor(source, source_3C, COLOR_GRAY2BGR);
+        //imshow("source_3C", source_3C);
+
+        //imshow("Binary", binary_Img);
+        //imshow("Eroded", eroded_binary_Img);
+        watershed(source_3C, markers);
+        markers.convertTo(markers, CV_8UC1);
+        //imshow("water", markers);
+        //waitKey();
+
+        //Step 4 Color the Segmentation Image
+        for(int row = 0; row < markers.rows; row++){
+            for(int col = 0; col < markers.cols; col++){
+                if(markers.at<unsigned char>(row, col) != 255 ){
+                    if( markers.at<unsigned char>(row, col) != 0){
+                        int i = markers.at<unsigned char> (row, col) / 50 -1;
+                        int r = i * 60;
+                        int b = 255- i *60;
+                        output.at<unsigned char>(row, col*3) = b;
+                        output.at<unsigned char>(row, col*3+2) = r;
+                    }
+                    else{
+                        output.at<unsigned char>(row, col*3) = 255;
+                        output.at<unsigned char>(row, col*3+1) = 255;
+                        output.at<unsigned char>(row, col*3+2) = 255;
+                    }
+                }
+            }
+        }
+
+
+    }
 };
 #endif
