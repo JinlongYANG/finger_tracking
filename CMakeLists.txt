@@ -43,6 +43,11 @@ add_executable(finger_tracking
 	src/finger_tracking_node.cpp
 	src/handkp_leap_msg.cpp
 	src/Hand_XYZRGB.cpp
+	src/articulate_HandModel_XYZRGB.cpp
+	include/GCoptimization/graph.cpp
+	include/GCoptimization/GCoptimization.cpp
+	include/GCoptimization/maxflow.cpp
+	include/GCoptimization/LinkedBlockList.cpp
 )
 
 

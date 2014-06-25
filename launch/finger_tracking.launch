@@ -1,10 +1,7 @@
 <launch>
 	
-    	<node pkg="rosbag" type="play" name="player" args="-r 0.05 -l $(find pixel_vo)/bags/kitti_05.bag"/>
-	<node name="slam" pkg="pixel_slam" type="slam"  output="screen" />
-    	<node name="reconfigure_gui" pkg="rqt_reconfigure" type="rqt_reconfigure" />
-	<node name="image_view" pkg="rqt_image_view" type="rqt_image_view" respawn="false" output="screen" >
-        <remap from="image" to="output" />
+    	<node pkg="rosbag" type="play" name="player" args="-r 1 -l /home/jinlong/bagfiles/simplest_new.bag"/>
+	<node name="finger_tracking" pkg="finger_tracking" type="finger_tracking"  />
+	<node name="rviz" pkg="rviz" type="rviz"  />
 
-	<node pkg="tf2_ros" type="static_transform_publisher" name="world2start" args="0 0 0 0 0.707  0.707 0 world start" />
 </launch>
