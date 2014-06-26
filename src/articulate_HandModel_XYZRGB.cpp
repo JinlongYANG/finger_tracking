@@ -55,6 +55,14 @@ Mat R_z(float theta){
     return Rz;
 }
 
+float arc2degree(float arc){
+    return 180.0*arc/PI;
+}
+
+float degree2arc(float degree){
+    return degree/180.0*PI;
+}
+
 /////////////////////////////////////////////////////////////////
 
 articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
@@ -151,9 +159,9 @@ articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
     Model_joints[9].at<float>(1,0) = bone_length[1][2]/1000.0;
     Model_joints[10].at<float>(1,0) = bone_length[1][3]/1000.0;
 
-//    Model_joints[10] = Model_joints[10]+Model_joints[9]+Model_joints[8]+Model_joints[7];
-//    Model_joints[9] = Model_joints[9]+Model_joints[8]+Model_joints[7];
-//    Model_joints[8] = Model_joints[8]+Model_joints[7];
+    //    Model_joints[10] = Model_joints[10]+Model_joints[9]+Model_joints[8]+Model_joints[7];
+    //    Model_joints[9] = Model_joints[9]+Model_joints[8]+Model_joints[7];
+    //    Model_joints[8] = Model_joints[8]+Model_joints[7];
 
     //3.2.2 middel to pinky(extrinsic):
     for ( int i = 0; i < 3; ++i){
@@ -161,9 +169,9 @@ articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
         Model_joints[i*5+14].at<float>(1,0) = bone_length[2+i][2]/1000;
         Model_joints[i*5+15].at<float>(1,0) = bone_length[2+i][3]/1000;
 
-//        Model_joints[i*5+15] = Model_joints[i*5+15]+Model_joints[i*5+14]+Model_joints[i*5+13]+Model_joints[i*5+12];
-//        Model_joints[i*5+14] = Model_joints[i*5+14]+Model_joints[i*5+13]+Model_joints[i*5+12];
-//        Model_joints[i*5+13] = Model_joints[i*5+13]+Model_joints[i*5+12];
+        //        Model_joints[i*5+15] = Model_joints[i*5+15]+Model_joints[i*5+14]+Model_joints[i*5+13]+Model_joints[i*5+12];
+        //        Model_joints[i*5+14] = Model_joints[i*5+14]+Model_joints[i*5+13]+Model_joints[i*5+12];
+        //        Model_joints[i*5+13] = Model_joints[i*5+13]+Model_joints[i*5+12];
 
     }
 
@@ -172,10 +180,10 @@ articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
     Model_joints[3].at<float>(1,0) = bone_length[0][1]/1000.0;
     Model_joints[4].at<float>(1,0) = bone_length[0][2]/1000.0;
 
-//    Model_joints[4] = Model_joints[4]+Model_joints[3]+Model_joints[2]+Model_joints[1];
-//    Model_joints[3] = Model_joints[3]+Model_joints[2]+Model_joints[1];
-//    Model_joints[2] = Model_joints[2]+Model_joints[1];
-//    Model_joints[4].copyTo(Model_joints[5]);
+    //    Model_joints[4] = Model_joints[4]+Model_joints[3]+Model_joints[2]+Model_joints[1];
+    //    Model_joints[3] = Model_joints[3]+Model_joints[2]+Model_joints[1];
+    //    Model_joints[2] = Model_joints[2]+Model_joints[1];
+    //    Model_joints[4].copyTo(Model_joints[5]);
 
 }
 
@@ -218,23 +226,23 @@ void articulate_HandModel_XYZRGB::set_parameters(){
     //12: angle between index finger proximal and intermediate;
     //13: angle between index finger intermediate and distal;
     parameters[10] = 10;
-    parameters[11] = 0;
-    parameters[12] = 0;
-    parameters[13] = 0;
+    parameters[11] = 70.3;
+    parameters[12] = 68.3;
+    parameters[13] = 15;
     //14: horizontal angle between middle finger proximal and palm;
     //15: vertical angle between middle finger proximal and palm;
     //16: angle between middle finger proximal and intermediate;
     //17: angle between middle finger intermediate and distal;
     parameters[14] = 0;
-    parameters[15] = 0;
-    parameters[16] = 0;
-    parameters[17] = 0;
+    parameters[15] = 80.2;
+    parameters[16] = 78;
+    parameters[17] = 1;
     //18: horizontal angle between ring finger proximal and palm;
     //19: vertical angle between ring finger proximal and palm;
     //20: angle between ring finger proximal and intermediate;
     //21: angle between ring finger intermediate and distal;
     parameters[18] = -10;
-    parameters[19] = 0;
+    parameters[19] = 0.234;
     parameters[20] = 0;
     parameters[21] = 0;
     //22: horizontal angle between pinky proximal and palm;
@@ -242,9 +250,9 @@ void articulate_HandModel_XYZRGB::set_parameters(){
     //24: angle between pinky proximal and intermediate;
     //25: angle between pinky intermediate and distal;
     parameters[22] = -25;
-    parameters[23] = 0;
-    parameters[24] = 0;
-    parameters[25] = 0;
+    parameters[23] = -60;
+    parameters[24] = 86;
+    parameters[25] = 1;
 }
 
 void articulate_HandModel_XYZRGB::get_parameters(){
@@ -301,6 +309,13 @@ void articulate_HandModel_XYZRGB::get_parameters(){
     palm.at<float>(1,8) = joints_position[22].y;
     palm.at<float>(2,8) = joints_position[22].z;
 
+    Mat joints_position_Mat = Mat::zeros(3,26, CV_32FC1);
+    for ( int i = 0; i < 26; i++ ) {
+        joints_position_Mat.at<float>(0,i) = joints_position[i].x;
+        joints_position_Mat.at<float>(1,i) = joints_position[i].y;
+        joints_position_Mat.at<float>(2,i) = joints_position[i].z;
+    }
+
     Mat R,t;
     poseEstimate::poseestimate::compute(palm,palm_model,R,t);
 
@@ -313,7 +328,209 @@ void articulate_HandModel_XYZRGB::get_parameters(){
     parameters[4] = angles[1];
     parameters[5] = angles[2];
 
+    //1.3 derotate the hand:
+    for(int i = 0; i<26; i++){
+        joints_position_Mat.col(i) = R.inv()*joints_position_Mat.col(i);
+    }
+
     //2. find angles of every joints of index finger:
+    ////////////////////////////////////////////
+    //   /cos(r) -sin(r)  0  \ /1    0    0  \    / cr    -casr    sasr\   / 0 \    / x2 \
+    //   |                   | |             |    |                    |  |     |   |    |
+    //   |sin(r) cos(r)   0  |*|0    ca   -sa| =  |sr      cacr   -sacr|  |  y1 | = | y2 |
+    //   |                   | |             |    |                    |  |     |   |    |
+    //   \  0      0     1   / \0    sa   ca /    \  0      sa      ca /   \ 0 /    \ z2 /
+    //
+    //2.1 parameter 10, 11:
+    Mat temp = joints_position_Mat.col(8)-Model_joints[7];
+    float ratio1, ratio2;
+    if(temp.at<float>(2,0)/Model_joints[8].at<float>(1,0)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(2,0)/Model_joints[8].at<float>(1,0);
+
+    double temp_alpha = asin(ratio1);
+    if(sin(temp_alpha) == 1 ||temp.at<float>(0,0)/Model_joints[8].at<float>(1,0)/cos(temp_alpha)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(0,0)/Model_joints[8].at<float>(1,0)/cos(temp_alpha);
+    double temp_gama = asin(-ratio1);
+//    temp_alpha += acos(temp.at<float>(1,0)/Model_joints[8].at<float>(1,0)/cos(temp_gama));
+//    temp_alpha = temp_alpha/2.0;
+//    temp_gama += acos(temp.at<float>(1,0)/Model_joints[8].at<float>(1,0)/cos(temp_alpha));
+//    temp_gama = temp_gama/2.0;
+    parameters[11] = arc2degree(temp_alpha);
+    parameters[10] = arc2degree(temp_gama);
+
+    R = R_z(parameters[10])*R_x(parameters[11]);
+
+    for(int i = 8; i< 11; i++){
+        joints_position_Mat.col(i) = R.inv()*(joints_position_Mat.col(i)-joints_position_Mat.col(7));
+        //std::cout << joints_position_Mat.col(i) << std::endl;
+    }
+
+    //2.2 parameter 12, 13:
+    temp = joints_position_Mat.col(9)-joints_position_Mat.col(8);
+
+    if(temp.at<float>(2,0)/Model_joints[9].at<float>(1,0)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(2,0)/Model_joints[9].at<float>(1,0);
+
+    if(temp.at<float>(1,0)/Model_joints[9].at<float>(1,0)>1)
+        ratio2 = 1;
+    else
+        ratio2 = temp.at<float>(1,0)/Model_joints[9].at<float>(1,0);
+
+    temp_alpha = (asin(ratio1)+acos(ratio2))/2.0;
+
+    parameters[12] = arc2degree(temp_alpha);
+
+    for(int i =9; i<11; i++){
+        joints_position_Mat.col(i) = R_x(parameters[12]).inv()*(joints_position_Mat.col(i)-joints_position_Mat.col(8));
+    }
+
+    temp = joints_position_Mat.col(10) - joints_position_Mat.col(9);
+    if (temp.at<float>(2,0)/Model_joints[10].at<float>(1,0)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(2,0)/Model_joints[10].at<float>(1,0);
+
+    if (temp.at<float>(1,0)/Model_joints[10].at<float>(1,0)>1)
+        ratio2 = 1;
+    else
+        ratio2 = temp.at<float>(1,0)/Model_joints[10].at<float>(1,0);
+    temp_alpha = (asin(ratio1)+acos(ratio2))/2.0;
+
+    parameters[13] = arc2degree(temp_alpha);
+
+    //3. find angles of joints of middle, ring, pinky fingers:
+    for( int finger = 0; finger < 3; finger++){
+        temp = joints_position_Mat.col(13+5*finger)-Model_joints[12+5*finger];
+
+        temp_alpha = asin(temp.at<float>(2,0)/Model_joints[13+5*finger].at<float>(1,0));
+        temp_gama = asin(-temp.at<float>(0,0)/Model_joints[13+5*finger].at<float>(1,0)/cos(temp_alpha));
+        //        temp_alpha += acos(temp.at<float>(1,0)/Model_joints[13+5*finger].at<float>(1,0)/cos(temp_gama));
+        //        temp_alpha = temp_alpha/2.0;
+        //        temp_gama += acos(temp.at<float>(1,0)/Model_joints[13+5*finger].at<float>(1,0)/cos(temp_alpha));
+        //        temp_gama = temp_gama/2.0;
+
+        parameters[15+finger*4] = arc2degree(temp_alpha);
+        parameters[14+finger*4] = arc2degree(temp_gama);
+
+        R = R_z(parameters[14+finger*4])*R_x(parameters[15+finger*4]);
+
+        for(int i = 13+5*finger; i< 16+5*finger; i++){
+            joints_position_Mat.col(i) = R.inv()*(joints_position_Mat.col(i)-joints_position_Mat.col(12+5*finger));
+            //std::cout << joints_position_Mat.col(i) << std::endl;
+        }
+
+
+        temp = joints_position_Mat.col(14+5*finger)-joints_position_Mat.col(13+5*finger);
+
+        if(temp.at<float>(2,0)/Model_joints[14+5*finger].at<float>(1,0)>1)
+            ratio1 = 1;
+        else
+            ratio1 = temp.at<float>(2,0)/Model_joints[14+5*finger].at<float>(1,0);
+
+        if(temp.at<float>(1,0)/Model_joints[14+5*finger].at<float>(1,0)>1){
+            ratio2 = 1;
+        }
+        else
+            ratio2 = temp.at<float>(1,0)/Model_joints[14+5*finger].at<float>(1,0);
+
+        temp_alpha = (asin(ratio1)+acos(ratio2))/2.0;
+
+        parameters[16+finger*4] = arc2degree(temp_alpha);
+
+
+        for(int i = 14+5*finger; i<16+5*finger; i++){
+            joints_position_Mat.col(i) = R_x(parameters[16+finger*4]).inv()*(joints_position_Mat.col(i)-joints_position_Mat.col(13+5*finger));
+        }
+
+        temp = joints_position_Mat.col(15+5*finger) - joints_position_Mat.col(14+5*finger);
+
+        if(temp.at<float>(2,0)/Model_joints[15+5*finger].at<float>(1,0)>1)
+            ratio1 = 1;
+        else
+            ratio1 = temp.at<float>(2,0)/Model_joints[15+5*finger].at<float>(1,0);
+
+        if(temp.at<float>(1,0)/Model_joints[15+5*finger].at<float>(1,0)>1)
+            ratio2 = 1;
+        else
+            ratio2 = temp.at<float>(1,0)/Model_joints[15+5*finger].at<float>(1,0);
+        temp_alpha = (asin(ratio1)+acos(ratio2))/2.0;
+
+
+        parameters[17+finger*4] = arc2degree(temp_alpha);
+    }
+
+    //4. find angles of joints of thumb
+    temp = joints_position_Mat.col(2)-Model_joints[1];
+    if(temp.at<float>(2,0)/Model_joints[2].at<float>(1,0)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(2,0)/Model_joints[2].at<float>(1,0);
+
+    temp_alpha = asin(ratio1);
+    if(sin(temp_alpha) == 1 ||temp.at<float>(0,0)/Model_joints[2].at<float>(1,0)/cos(temp_alpha)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(0,0)/Model_joints[2].at<float>(1,0)/cos(temp_alpha);
+    temp_gama = asin(-ratio1);
+//    temp_alpha += acos(temp.at<float>(1,0)/Model_joints[8].at<float>(1,0)/cos(temp_gama));
+//    temp_alpha = temp_alpha/2.0;
+//    temp_gama += acos(temp.at<float>(1,0)/Model_joints[8].at<float>(1,0)/cos(temp_alpha));
+//    temp_gama = temp_gama/2.0;
+    parameters[7] = arc2degree(temp_alpha);
+    parameters[6] = arc2degree(temp_gama)-10;
+
+    R = R_z(parameters[6]+10)*R_x(parameters[7])*R_y(50);
+
+    for(int i = 2; i< 5; i++){
+        joints_position_Mat.col(i) = R.inv()*(joints_position_Mat.col(i)-joints_position_Mat.col(1));
+        //std::cout << joints_position_Mat.col(i) << std::endl;
+    }
+
+    //4.2 parameter 8, 9:
+    temp = joints_position_Mat.col(3)-joints_position_Mat.col(2);
+
+    if(temp.at<float>(2,0)/Model_joints[3].at<float>(1,0)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(2,0)/Model_joints[3].at<float>(1,0);
+
+    if(temp.at<float>(1,0)/Model_joints[3].at<float>(1,0)>1)
+        ratio2 = 1;
+    else
+        ratio2 = temp.at<float>(1,0)/Model_joints[3].at<float>(1,0);
+
+    temp_alpha = (asin(ratio1)+acos(ratio2))/2.0;
+
+    parameters[8] = arc2degree(temp_alpha);
+
+    for(int i =3; i<5; i++){
+        joints_position_Mat.col(i) = R_x(parameters[8]).inv()*(joints_position_Mat.col(i)-joints_position_Mat.col(2));
+    }
+
+    temp = joints_position_Mat.col(4) - joints_position_Mat.col(3);
+    if (temp.at<float>(2,0)/Model_joints[4].at<float>(1,0)>1)
+        ratio1 = 1;
+    else
+        ratio1 = temp.at<float>(2,0)/Model_joints[4].at<float>(1,0);
+
+    if (temp.at<float>(1,0)/Model_joints[4].at<float>(1,0)>1)
+        ratio2 = 1;
+    else
+        ratio2 = temp.at<float>(1,0)/Model_joints[4].at<float>(1,0);
+
+    temp_alpha = (asin(ratio1)+acos(ratio2))/2.0;
+
+    parameters[9] = arc2degree(temp_alpha);
+
+    for(int i = 0; i< 26; i++){
+        std::cout << i << ": " << parameters[i]<<std::endl;
+    }
 
 
 
@@ -345,10 +562,6 @@ void articulate_HandModel_XYZRGB::get_joints_positions(){
 
     //2.fingers:
     //2.1 index(extrinsic):
-    joints_for_calc[8].at<float>(1,0) = bone_length[1][1]/1000.0;
-    joints_for_calc[9].at<float>(1,0) = bone_length[1][2]/1000.0;
-    joints_for_calc[10].at<float>(1,0) = bone_length[1][3]/1000.0;
-
     Mat R[3];
     R[0] = R_z(parameters[10])*R_x(parameters[11]);
     R[1] = R_x(parameters[12]);
@@ -360,10 +573,6 @@ void articulate_HandModel_XYZRGB::get_joints_positions(){
 
     //2.2 middel to pinky(extrinsic):
     for ( int i = 0; i < 3; ++i){
-        joints_for_calc[i*5+13].at<float>(1,0) = bone_length[2+i][1]/1000;
-        joints_for_calc[i*5+14].at<float>(1,0) = bone_length[2+i][2]/1000;
-        joints_for_calc[i*5+15].at<float>(1,0) = bone_length[2+i][3]/1000;
-
         R[0] = R_z(parameters[i*4+14])*R_x(parameters[i*4+15]);
         R[1] = R_x(parameters[i*4+16]);
         R[2] = R_x(parameters[i*4+17]);
@@ -375,10 +584,6 @@ void articulate_HandModel_XYZRGB::get_joints_positions(){
     }
 
     //2.3 thumb(extrinsic)
-    joints_for_calc[2].at<float>(1,0) = bone_length[0][0]/1000.0;
-    joints_for_calc[3].at<float>(1,0) = bone_length[0][1]/1000.0;
-    joints_for_calc[4].at<float>(1,0) = bone_length[0][2]/1000.0;
-
     R[0] = R_y(50);
     R[0] = R_z(10+parameters[6])*R_x(parameters[7])*R[0];
     R[1] = R_x(parameters[8]);
