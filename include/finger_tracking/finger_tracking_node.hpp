@@ -579,7 +579,7 @@ public:
                 L_distance.at<unsigned char>(row, col) = min(int(10*m_data[(col + row * m_width) * m_num_labels + 9]), 255);
             }
         }
-        imshow("L_distance", L_distance);
+        //imshow("L_distance", L_distance);
 
 
         // next set up the array for smooth costs
@@ -609,16 +609,19 @@ public:
                     if (abs(Hand_depth.at<unsigned char>(y,x)-Hand_depth.at<unsigned char>(y-1, x))<4)
                         gc->setNeighbors(x+y*m_width,x+(y-1)*m_width);
 
-            printf("Before optimization energy is %lld\n",gc->compute_energy());
+            //printf("Before optimization energy is %lld\n",gc->compute_energy());
             //            for ( int  i = 0; i < m_num_pixels; i++ ){
             //                m_result[i] = gc->whatLabel(i);
             //                std::cout<<m_result[i]<<" ";
             //                if((i+1)%10 == 0)
             //                    std::cout<<std::endl;
             //            }
-            gc->expansion(15);// run expansion for 1 iterations. For swap use gc->swap(num_iterations);
-            gc->swap(3);
-            printf("After optimization energy is %lld\n",gc->compute_energy());
+            ros::Time time1 = ros::Time::now();
+            gc->expansion(5);// run expansion for 1 iterations. For swap use gc->swap(num_iterations);
+            //gc->swap(5);
+            ros::Time time2 = ros::Time::now();
+            std::cout<<"Time in: "<< time2-time1<<std::endl;
+            //printf("After optimization energy is %lld\n",gc->compute_energy());
 
             //            for ( int  i = 0; i < m_num_pixels; i++ ){
             //                m_result[i] = gc->whatLabel(i);
