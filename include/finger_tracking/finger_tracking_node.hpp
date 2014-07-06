@@ -476,7 +476,7 @@ public:
 
     /////////////////////////////////////////////////////////////////////
     //*******     Multi-label graph cut segmentation   ****************//
-    void GridGraphSeqeratePalm(Mat Hand_depth, pcl::PointCloud<pcl::PointXYZRGB> Hand_kp_2d, Mat & output){
+    void GridGraphSeqeratePalm(Mat Hand_depth, pcl::PointCloud<pcl::PointXYZRGB> Hand_kp_2d, Mat & color_segment, Mat & label_segment){
         // in this version, set data and smoothness terms using arrays
         // grid neighborhood is set up "manually". Uses spatially varying terms. Namely
         // V(p1,p2,l1,l2) = w_{p1,p2}*[min((l1-l2)*(l1-l2),4)], with
@@ -634,17 +634,18 @@ public:
             for ( int row = 0; row < Hand_depth.rows; row++){
                 for ( int col = 0; col < Hand_depth.cols; col++){
                     int label = gc->whatLabel(row * Hand_depth.cols + col);
+                    label_segment.at<unsigned char>(row, col) = label;
                     if(label == 0){
-                        output.at<unsigned char>(row, 3*col+0) = 255;
-                        output.at<unsigned char>(row, 3*col+1) = 255;
-                        output.at<unsigned char>(row, 3*col+2) = 255;
+                        color_segment.at<unsigned char>(row, 3*col+0) = 255;
+                        color_segment.at<unsigned char>(row, 3*col+1) = 255;
+                        color_segment.at<unsigned char>(row, 3*col+2) = 255;
                     }
                     else if(label%3 == 0)
-                        output.at<unsigned char>(row, 3*col+0) = label*13;
+                        color_segment.at<unsigned char>(row, 3*col+0) = label*13;
                     if(label%3 == 1)
-                        output.at<unsigned char>(row, 3*col+1) = label*13;
+                        color_segment.at<unsigned char>(row, 3*col+1) = label*13;
                     if(label%3 == 2)
-                        output.at<unsigned char>(row, 3*col+2) = label*13;
+                        color_segment.at<unsigned char>(row, 3*col+2) = label*13;
 
                 }
             }

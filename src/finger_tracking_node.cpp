@@ -154,7 +154,7 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         }
         //std::cout<<"Hand Cloud size: "<<handcloud.size()<<endl;
         ////////////////////////////////////////////////////////
-        Mat SegmentMat;
+        Mat SegmentMat, LabelMat;
         //************     Watershed segmentation   **********//
         //        Mat Hand_DepthMat4Watershed;
         //        Hand_DepthMat4Watershed = Mat::zeros(imageSize,imageSize,CV_8U);
@@ -186,8 +186,9 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         //        }
 
         SegmentMat = Mat::zeros(imageSize,imageSize,CV_8UC3);
+        LabelMat = Mat::zeros(imageSize,imageSize,CV_8UC1);
         //GridGraph(Hand_DepthMat, Hand_kp_2d, SegmentMat);
-        GridGraphSeqeratePalm(Hand_DepthMat, Hand_kp_2d, SegmentMat);
+        GridGraphSeqeratePalm(Hand_DepthMat, Hand_kp_2d, SegmentMat, LabelMat);
         ///////////////////////////////////////////////////////////
         ros::Time time2 = ros::Time::now();
         std::cout<<"Time: "<< time2 - time1 << std::endl;
@@ -199,13 +200,25 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         pcl::PointCloud<pcl::PointXYZRGB> articulation;
         articulate_HandModel_XYZRGB Hand_model;
 
-//        Hand_model.set_parameters();
-//        Hand_model.get_joints_positions();
-//        Hand_model.get_parameters();
+        Hand_model.set_parameters();
+        Hand_model.get_joints_positions();
+        //Hand_model.get_parameters();
+        //Palm ICP
+        for(int iteration_Number = 0; iteration_Number < 5; iteration_Number++){
+        Hand_model.CP_palm_fitting1(Hand_DepthMat,LabelMat, resolution);
+        Hand_model.get_joints_positions();
+        }
 
-//        for(int i = 0; i < 26; i++){
-//            articulation.push_back(Hand_model.joints_position[i]);
-//        }
+        //Proximal fitting:
+        Hand_model.finger_fitting(Hand_DepthMat,LabelMat, resolution, 0);
+        //Intermediate fitting:
+        Hand_model.finger_fitting(Hand_DepthMat,LabelMat, resolution, 1);
+        //distal fitting:
+        Hand_model.finger_fitting(Hand_DepthMat,LabelMat, resolution, 2);
+
+        for(int i = 0; i < 26; i++){
+            articulation.push_back(Hand_model.joints_position[i]);
+        }
 
 
 
@@ -241,53 +254,53 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         segmentImage_msg.header.stamp =  hand_kp_pter->header.stamp;
         segmentpublisher_.publish(segmentImage_msg.toImageMsg());
 
-//        visualization_msgs::Marker bone;
-//        bone.header.frame_id = hand_kp_pter->header.frame_id;
-//        bone.header.stamp = hand_kp_pter->header.stamp;
-//        bone.ns = "finger_tracking";
-//        bone.type = visualization_msgs::Marker::LINE_LIST;
-//        bone.id = 0;
-//        bone.action = visualization_msgs::Marker::ADD;
-//        bone.pose.orientation.w = 1.0;
-//        bone.scale.x = 0.001;
-//        bone.color.a = 1.0;
-//        bone.color.g = 1.0;
-//        for(int finger = 0; finger <5; finger++){
-//            for(int i = 1; i< 5; i++){
-//                geometry_msgs::Point p;
-//                p.x = articulation.points[5*finger+i].x;
-//                p.y = articulation.points[5*finger+i].y;
-//                p.z = articulation.points[5*finger+i].z;
-//                bone.points.push_back(p);
-//                p.x = articulation.points[5*finger+i+1].x;
-//                p.y = articulation.points[5*finger+i+1].y;
-//                p.z = articulation.points[5*finger+i+1].z;
-//                bone.points.push_back(p);
-//            }
-//        }
-//        for(int i = 0; i< 2; i++){
-//            for(int j = 0; j< 3; j++){
-//                geometry_msgs::Point p;
-//                p.x = articulation.points[6+5*j+i].x;
-//                p.y = articulation.points[6+5*j+i].y;
-//                p.z = articulation.points[6+5*j+i].z;
-//                bone.points.push_back(p);
-//                p.x = articulation.points[6+5*j+5+i].x;
-//                p.y = articulation.points[6+5*j+5+i].y;
-//                p.z = articulation.points[6+5*j+5+i].z;
-//                bone.points.push_back(p);
-//            }
-//        }
-//        geometry_msgs::Point p;
-//        p.x = articulation.points[1].x;
-//        p.y = articulation.points[1].y;
-//        p.z = articulation.points[1].z;
-//        bone.points.push_back(p);
-//        p.x = articulation.points[6].x;
-//        p.y = articulation.points[6].y;
-//        p.z = articulation.points[6].z;
-//        bone.points.push_back(p);
-//        bone_pub_.publish( bone );
+        visualization_msgs::Marker bone;
+        bone.header.frame_id = hand_kp_pter->header.frame_id;
+        bone.header.stamp = hand_kp_pter->header.stamp;
+        bone.ns = "finger_tracking";
+        bone.type = visualization_msgs::Marker::LINE_LIST;
+        bone.id = 0;
+        bone.action = visualization_msgs::Marker::ADD;
+        bone.pose.orientation.w = 1.0;
+        bone.scale.x = 0.001;
+        bone.color.a = 1.0;
+        bone.color.g = 1.0;
+        for(int finger = 0; finger <5; finger++){
+            for(int i = 1; i< 5; i++){
+                geometry_msgs::Point p;
+                p.x = articulation.points[5*finger+i].x;
+                p.y = articulation.points[5*finger+i].y;
+                p.z = articulation.points[5*finger+i].z;
+                bone.points.push_back(p);
+                p.x = articulation.points[5*finger+i+1].x;
+                p.y = articulation.points[5*finger+i+1].y;
+                p.z = articulation.points[5*finger+i+1].z;
+                bone.points.push_back(p);
+            }
+        }
+        for(int i = 0; i< 2; i++){
+            for(int j = 0; j< 3; j++){
+                geometry_msgs::Point p;
+                p.x = articulation.points[6+5*j+i].x;
+                p.y = articulation.points[6+5*j+i].y;
+                p.z = articulation.points[6+5*j+i].z;
+                bone.points.push_back(p);
+                p.x = articulation.points[6+5*j+5+i].x;
+                p.y = articulation.points[6+5*j+5+i].y;
+                p.z = articulation.points[6+5*j+5+i].z;
+                bone.points.push_back(p);
+            }
+        }
+        geometry_msgs::Point p;
+        p.x = articulation.points[1].x;
+        p.y = articulation.points[1].y;
+        p.z = articulation.points[1].z;
+        bone.points.push_back(p);
+        p.x = articulation.points[6].x;
+        p.y = articulation.points[6].y;
+        p.z = articulation.points[6].z;
+        bone.points.push_back(p);
+        bone_pub_.publish( bone );
 
         ros::Time time9 = ros::Time::now();
         std::cout<<"FPS: "<< time9-time0 << std::endl;

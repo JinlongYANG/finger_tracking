@@ -122,6 +122,7 @@ public:
     float bone_length[5][4];
     pcl::PointXYZRGB joints_position[26];
     Mat Model_joints[26];
+    Mat palm_model;
 
 
     bool check_parameters(int & wrong_parameter_index);
@@ -129,8 +130,9 @@ public:
     void get_parameters();
     void set_joints_positions();
     void get_joints_positions();
-    void expectation(std::vector<pcl::PointXYZRGB> & hand_pcl);
-    void maximization(std::vector<pcl::PointXYZRGB> & hand_pcl);
+
+    void CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMat, int resolution);
+    void finger_fitting(Mat Hand_DepthMat,Mat LabelMat, int resolution, int bone);
 
 private:
 
