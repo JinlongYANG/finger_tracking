@@ -55,6 +55,11 @@ Mat R_z(float theta){
     return Rz;
 }
 
+float Distance_2XYZRGB(pcl::PointXYZRGB p1, pcl::PointXYZRGB p2){
+    float dis = sqrt((p1.x-p2.x)*(p1.x-p2.x)+(p1.y-p2.y)*(p1.y-p2.y)+(p1.z-p2.z)*(p1.z-p2.z));
+    return dis;
+}
+
 float arc2degree(float arc){
     return 180.0*arc/PI;
 }
@@ -91,25 +96,25 @@ articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
     bone_length[0][2] = 22.9945;
     bone_length[0][3] =0;
     //index finger
-    bone_length[1][0] = 79.4271;
-    bone_length[1][1] = 48.0471;
-    bone_length[1][2] = 28.7806;
-    bone_length[1][3] = 21.517;
+    bone_length[1][0] = 78.4271;
+    bone_length[1][1] = 47.0471;
+    bone_length[1][2] = 27.7806;
+    bone_length[1][3] = 20.517;
     //middle finger
-    bone_length[2][0] = 75.5294;
-    bone_length[2][1] = 53.4173;
-    bone_length[2][2] = 33.1543;
-    bone_length[2][3] = 23.2665;
+    bone_length[2][0] = 74.5294;
+    bone_length[2][1] = 52.4173;
+    bone_length[2][2] = 32.1543;
+    bone_length[2][3] = 22.2665;
     //ring finger
-    bone_length[3][0] = 68.2215;
-    bone_length[3][1] = 49.8076;
-    bone_length[3][2] = 32.4014;
-    bone_length[3][3] = 23.1557;
+    bone_length[3][0] = 67.2215;
+    bone_length[3][1] = 48.8076;
+    bone_length[3][2] = 31.4014;
+    bone_length[3][3] = 22.1557;
     //pinky finger
-    bone_length[4][0] = 63.4492;
-    bone_length[4][1] = 40.2519;
-    bone_length[4][2] = 24.0526;
-    bone_length[4][3] = 21.672;
+    bone_length[4][0] = 62.4492;
+    bone_length[4][1] = 39.2519;
+    bone_length[4][2] = 23.0526;
+    bone_length[4][3] = 20.672;
 
     //3. Model joints position initialization
     for(int i = 0; i < 26; i++){
@@ -119,11 +124,11 @@ articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
     //palm joints with reference to palm/hand coordinate:
     //palm.thumb
     Model_joints[1].at<float>(0,0) = -0.019;
-    Model_joints[1].at<float>(1,0) = -0.054;
+    Model_joints[1].at<float>(1,0) = -0.055;
     Model_joints[1].at<float>(2,0) = 0.001;
     //palm.index
-    Model_joints[6].at<float>(0,0) = -0.012;
-    Model_joints[6].at<float>(1,0) = -0.049;
+    Model_joints[6].at<float>(0,0) = -0.014;
+    Model_joints[6].at<float>(1,0) = -0.053;
     Model_joints[6].at<float>(2,0) = -0.008;
 
     Model_joints[7].at<float>(0,0) = -0.027;
@@ -131,28 +136,52 @@ articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
     Model_joints[7].at<float>(2,0) = 0;
     //palm.middle
     Model_joints[11].at<float>(0,0) = 0;
-    Model_joints[11].at<float>(1,0) = -0.050;
+    Model_joints[11].at<float>(1,0) = -0.05;
     Model_joints[11].at<float>(2,0) = -0.008;
 
-    Model_joints[12].at<float>(0,0) = 0;
-    Model_joints[12].at<float>(1,0) = 0.024;
+    Model_joints[12].at<float>(0,0) = -0.002;
+    Model_joints[12].at<float>(1,0) = 0.023;
     Model_joints[12].at<float>(2,0) = 0;
     //palm.ring
-    Model_joints[16].at<float>(0,0) = 0.010;
-    Model_joints[16].at<float>(1,0) = -0.049;
+    Model_joints[16].at<float>(0,0) = 0.012;
+    Model_joints[16].at<float>(1,0) = -0.051;
     Model_joints[16].at<float>(2,0) = -0.008;
 
-    Model_joints[17].at<float>(0,0) = 0.018;
-    Model_joints[17].at<float>(1,0) = 0.019;
+    Model_joints[17].at<float>(0,0) = 0.020;
+    Model_joints[17].at<float>(1,0) = 0.018;
     Model_joints[17].at<float>(2,0) = 0;
     //palm.pinky
-    Model_joints[21].at<float>(0,0) = 0.020;
-    Model_joints[21].at<float>(1,0) = -0.049;
-    Model_joints[21].at<float>(2,0) = -0.008;
+    Model_joints[21].at<float>(0,0) = 0.023;
+    Model_joints[21].at<float>(1,0) = -0.053;
+    Model_joints[21].at<float>(2,0) = -0.004;
 
-    Model_joints[22].at<float>(0,0) = 0.036;
-    Model_joints[22].at<float>(1,0) = 0.015;
+    Model_joints[22].at<float>(0,0) = 0.042;
+    Model_joints[22].at<float>(1,0) = 0.013;
     Model_joints[22].at<float>(2,0) = 0;
+
+    for(int i = 0; i < 5; i++){
+        virtual_joints[i] = Mat::zeros(3,1,CV_32FC1);
+    }
+    virtual_joints[0].at<float>(0,0) = 0.042;
+    virtual_joints[0].at<float>(1,0) = 0.042;
+    virtual_joints[0].at<float>(2,0) = 0.042;
+
+    virtual_joints[1].at<float>(0,0) = Model_joints[7].at<float>(0,0);
+    virtual_joints[1].at<float>(1,0) = Model_joints[7].at<float>(1,0);
+    virtual_joints[1].at<float>(2,0) = Model_joints[7].at<float>(2,0) + 0.1;
+
+    virtual_joints[2].at<float>(0,0) = Model_joints[12].at<float>(0,0);
+    virtual_joints[2].at<float>(1,0) = Model_joints[12].at<float>(1,0);
+    virtual_joints[2].at<float>(2,0) = Model_joints[12].at<float>(2,0) + 0.1;
+
+    virtual_joints[3].at<float>(0,0) = Model_joints[17].at<float>(0,0);
+    virtual_joints[3].at<float>(1,0) = Model_joints[17].at<float>(1,0);
+    virtual_joints[3].at<float>(2,0) = Model_joints[17].at<float>(2,0) + 0.1;
+
+    virtual_joints[4].at<float>(0,0) = Model_joints[22].at<float>(0,0);
+    virtual_joints[4].at<float>(1,0) = Model_joints[22].at<float>(1,0);
+    virtual_joints[4].at<float>(2,0) = Model_joints[22].at<float>(2,0) + 0.1;
+
     //3.2.fingers:
     //3.2.1 index(extrinsic):
     Model_joints[8].at<float>(1,0) = bone_length[1][1]/1000.0;
@@ -198,8 +227,6 @@ articulate_HandModel_XYZRGB::articulate_HandModel_XYZRGB()
     Model_joints[22].copyTo(palm_model.col(8));
 
 }
-
-
 
 bool articulate_HandModel_XYZRGB::check_parameters(int &wrong_parameter_index){
     for(int i = 0; i < 26; i++){
@@ -608,8 +635,14 @@ void articulate_HandModel_XYZRGB::get_joints_positions(){
     //3. palm after pitch yaw roll(extrinsic):
     Mat R_p_r_y = R_z(parameters[5])*R_y(parameters[4])*R_x(parameters[3]);
     //std::cout << "R: " << R_p_r_y << std::endl;
+    Mat translation = Mat::zeros(3,1,CV_32FC1);
+    translation.at<float>(0,0) = parameters[0];
+    translation.at<float>(1,0) = parameters[1];
+    translation.at<float>(2,0) = parameters[2];
+
+    //std::cout << "translation: " << translation << std::endl;
     for(int i = 0; i< 26; i++){
-        joints_for_calc[i] = R_p_r_y * joints_for_calc[i];
+        joints_for_calc[i] = R_p_r_y * joints_for_calc[i]+translation;
     }
 
 
@@ -622,16 +655,32 @@ void articulate_HandModel_XYZRGB::get_joints_positions(){
         //std::cout<< i <<": "<<joints_position[i]<<std::endl;
     }
 
-
-
 }
 
-void articulate_HandModel_XYZRGB::set_joints_positions(){
+void articulate_HandModel_XYZRGB::set_joints_positions(pcl::PointCloud<pcl::PointXYZRGB> hand_kp){
 
+    if(hand_kp.size() == 32){
+        joints_position[0] = hand_kp.points[0];
+        joints_position[1].rgb = hand_kp.points[2].rgb;
+        joints_position[1].x = (hand_kp.points[2].x+hand_kp.points[8].x)/2.0;
+        joints_position[1].y = (hand_kp.points[2].y+hand_kp.points[8].y)/2.0;
+        joints_position[1].z = (hand_kp.points[2].z+hand_kp.points[8].z)/2.0;
+        joints_position[2] = hand_kp.points[4];
+        joints_position[3] = hand_kp.points[5];
+        joints_position[4] = hand_kp.points[6];
+        joints_position[5] = joints_position[4];
+
+        for(int i = 1; i< 5; i++){
+            for(int j = 0; j < 5; j++){
+                joints_position[i*5+1+j] = hand_kp.points[i*6+j+2];
+            }
+        }
+
+    }
 }
 
 void articulate_HandModel_XYZRGB::CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMat, int resolution){
-    //1. ICP palm:
+    //1. CP palm:
     //1.1 put palm joints model into discrete space
     int imageSize = int(LabelMat.rows);
     Mat palm;
@@ -789,9 +838,9 @@ void articulate_HandModel_XYZRGB::CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMa
 
         }
     }
-    for(int i = 0; i<8; i++){
-        std::cout <<i<<": " << temp_row[i] <<" " << temp_col[i]<< " " << temp_dis[i]<<std::endl;
-    }
+    //    for(int i = 0; i<8; i++){
+    //        std::cout <<i<<": " << temp_row[i] <<" " << temp_col[i]<< " " << temp_dis[i]<<std::endl;
+    //    }
 
     //        Mat show2 = Mat::zeros(imageSize, imageSize, CV_32FC1);
     //        for(int i = 0; i< 8; i++){
@@ -812,13 +861,16 @@ void articulate_HandModel_XYZRGB::CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMa
 
     //1.3.2 compute
     Mat R,t;
-    poseEstimate::poseestimate::compute(Oberservation,palm_model,R,t);
+    t = Mat::zeros(3, 1, CV_32FC1);
+    Mat A(Oberservation, Rect(1,0,8,3)), B(palm_model, Rect(1,0,8,3));
 
-//    std::cout<<"Ober: "<< Oberservation << std::endl;
-//    std::cout << "palm: " << palm << std::endl;
+    poseEstimate::poseestimate::compute(A,B,R,t);
 
-//    std::cout<<"R: "<< R << std::endl;
-//    std::cout << "t: " << t << std::endl;
+    //    std::cout<<"Ober: "<< Oberservation << std::endl;
+    //    std::cout << "palm: " << palm << std::endl;
+
+    //    std::cout<<"R: "<< R << std::endl;
+    std::cout << "t: " << t << std::endl;
     //1.3.3 get the angles:
     cv::Mat mtxR, mtxQ;
     cv::Vec3d angles;
@@ -829,6 +881,9 @@ void articulate_HandModel_XYZRGB::CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMa
     parameters[4] = angles[1];
     parameters[5] = angles[2];
 
+    //    parameters[0] = t.at<float>(0,0);
+    //    parameters[1] = t.at<float>(1,0);
+    parameters[2] = t.at<float>(2,0);
 
 }
 
@@ -849,10 +904,10 @@ void articulate_HandModel_XYZRGB::finger_fitting(Mat Hand_DepthMat,Mat LabelMat,
                 temp_direction.y = (row-imageSize/2.0)*resolution/1000.0 - joints_position[1+bone].y;
 
                 length = sqrt(temp_direction.x*temp_direction.x+temp_direction.y*temp_direction.y+temp_direction.z*temp_direction.z);
-                count[0]+=length;
-                direction[0].x += temp_direction.x;
-                direction[0].y += temp_direction.y;
-                direction[0].z += temp_direction.z;
+                //                count[0]+=length;
+                direction[0].x += temp_direction.x*length;
+                direction[0].y += temp_direction.y*length;
+                direction[0].z += temp_direction.z*length;
 
                 break;
             }
@@ -864,12 +919,11 @@ void articulate_HandModel_XYZRGB::finger_fitting(Mat Hand_DepthMat,Mat LabelMat,
                 temp_direction.x = (col-imageSize/2.0)*resolution/1000.0 - joints_position[7+bone].x;
                 temp_direction.y = (row-imageSize/2.0)*resolution/1000.0 - joints_position[7+bone].y;
 
-
                 length = sqrt(temp_direction.x*temp_direction.x+temp_direction.y*temp_direction.y+temp_direction.z*temp_direction.z);
-                                count[1]+=length;
-                direction[1].x += temp_direction.x;
-                direction[1].y += temp_direction.y;
-                direction[1].z += temp_direction.z;
+                //                                count[1]+=length;
+                direction[1].x += temp_direction.x*length;
+                direction[1].y += temp_direction.y*length;
+                direction[1].z += temp_direction.z*length;
 
                 break;
             }
@@ -881,12 +935,11 @@ void articulate_HandModel_XYZRGB::finger_fitting(Mat Hand_DepthMat,Mat LabelMat,
                 temp_direction.x = (col-imageSize/2.0)*resolution/1000.0 - joints_position[12+bone].x;
                 temp_direction.y = (row-imageSize/2.0)*resolution/1000.0 - joints_position[12+bone].y;
 
-
                 length = sqrt(temp_direction.x*temp_direction.x+temp_direction.y*temp_direction.y+temp_direction.z*temp_direction.z);
-                count[2]+=length;
-                direction[2].x += temp_direction.x;
-                direction[2].y += temp_direction.y;
-                direction[2].z += temp_direction.z;
+                //                count[2]+=length;
+                direction[2].x += temp_direction.x*length;
+                direction[2].y += temp_direction.y*length;
+                direction[2].z += temp_direction.z*length;
 
                 break;
             }
@@ -898,12 +951,11 @@ void articulate_HandModel_XYZRGB::finger_fitting(Mat Hand_DepthMat,Mat LabelMat,
                 temp_direction.x = (col-imageSize/2.0)*resolution/1000.0 - joints_position[17+bone].x;
                 temp_direction.y = (row-imageSize/2.0)*resolution/1000.0 - joints_position[17+bone].y;
 
-
                 length = sqrt(temp_direction.x*temp_direction.x+temp_direction.y*temp_direction.y+temp_direction.z*temp_direction.z);
-                count[3]+=length;
-                direction[3].x += temp_direction.x;
-                direction[3].y += temp_direction.y;
-                direction[3].z += temp_direction.z;
+                //                count[3]+=length;
+                direction[3].x += temp_direction.x*length;
+                direction[3].y += temp_direction.y*length;
+                direction[3].z += temp_direction.z*length;
 
                 break;
             }
@@ -915,12 +967,11 @@ void articulate_HandModel_XYZRGB::finger_fitting(Mat Hand_DepthMat,Mat LabelMat,
                 temp_direction.x = (col-imageSize/2.0)*resolution/1000.0 - joints_position[22+bone].x;
                 temp_direction.y = (row-imageSize/2.0)*resolution/1000.0 - joints_position[22+bone].y;
 
-
                 length = sqrt(temp_direction.x*temp_direction.x+temp_direction.y*temp_direction.y+temp_direction.z*temp_direction.z);
-                count[4]+=length;
-                direction[4].x += temp_direction.x;
-                direction[4].y += temp_direction.y;
-                direction[4].z += temp_direction.z;
+                //                count[4]+=length;
+                direction[4].x += temp_direction.x*length;
+                direction[4].y += temp_direction.y*length;
+                direction[4].z += temp_direction.z*length;
 
             }
 
@@ -934,9 +985,10 @@ void articulate_HandModel_XYZRGB::finger_fitting(Mat Hand_DepthMat,Mat LabelMat,
     }
 
     for(int i = 0; i< 5; i++){
-        direction[i].x = direction[i].x/count[i];
-        direction[i].y = direction[i].y/count[i];
-        direction[i].z = direction[i].z/count[i];
+        length = sqrt(direction[i].x*direction[i].x+direction[i].y*direction[i].y+direction[i].z*direction[i].z);
+        direction[i].x = direction[i].x/length;
+        direction[i].y = direction[i].y/length;
+        direction[i].z = direction[i].z/length;
     }
 
     joints_position[2+bone].x = joints_position[1+bone].x + bone_length[0][0+bone]/1000.0*direction[0].x;
@@ -965,6 +1017,603 @@ void articulate_HandModel_XYZRGB::finger_fitting(Mat Hand_DepthMat,Mat LabelMat,
 
 }
 
+void articulate_HandModel_XYZRGB::finger_fitting2(Mat Hand_DepthMat, Mat LabelMat, int resolution, int bone){
+
+    int imageSize = int(LabelMat.rows);
+    //1. CP finger:
+    //1.1 put finger joints into discrete space and build mesh, put it into discrete space
+    Mat finger_bone[5];
+    //iterpolation
+    //    //thumb:
+    //    finger_bone[0] = Mat::zeros(3, 6, CV_32FC1);
+
+    //    finger_bone[0].at<float>(0,0) = joints_position[1+bone].x;
+    //    finger_bone[0].at<float>(1,0) = joints_position[1+bone].y;
+    //    finger_bone[0].at<float>(2,0) = joints_position[1+bone].z;
+
+    //    finger_bone[0].at<float>(0,1) = joints_position[2+bone].x;
+    //    finger_bone[0].at<float>(1,1) = joints_position[2+bone].y;
+    //    finger_bone[0].at<float>(2,1) = joints_position[2+bone].z;
+
+    //    finger_bone[0].at<float>(0,2) = 1.0/5*joints_position[1+bone].x + 4.0/5*joints_position[2+bone].x;
+    //    finger_bone[0].at<float>(1,2) = 1.0/5*joints_position[1+bone].y + 4.0/5*joints_position[2+bone].y;
+    //    finger_bone[0].at<float>(2,2) = 1.0/5*joints_position[1+bone].z + 4.0/5*joints_position[2+bone].z;
+
+    //    finger_bone[0].at<float>(0,3) = 2.0/5*joints_position[1+bone].x + 3.0/5*joints_position[2+bone].x;
+    //    finger_bone[0].at<float>(1,3) = 2.0/5*joints_position[1+bone].y + 3.0/5*joints_position[2+bone].y;
+    //    finger_bone[0].at<float>(2,3) = 2.0/5*joints_position[1+bone].z + 3.0/5*joints_position[2+bone].z;
+
+    //    finger_bone[0].at<float>(0,4) = 3.0/5*joints_position[1+bone].x + 2.0/5*joints_position[2+bone].x;
+    //    finger_bone[0].at<float>(1,4) = 3.0/5*joints_position[1+bone].y + 2.0/5*joints_position[2+bone].y;
+    //    finger_bone[0].at<float>(2,4) = 3.0/5*joints_position[1+bone].z + 2.0/5*joints_position[2+bone].z;
+
+    //    finger_bone[0].at<float>(0,5) = 4.0/5*joints_position[1+bone].x + 1.0/5*joints_position[2+bone].x;
+    //    finger_bone[0].at<float>(1,5) = 4.0/5*joints_position[1+bone].y + 1.0/5*joints_position[2+bone].y;
+    //    finger_bone[0].at<float>(2,5) = 4.0/5*joints_position[1+bone].z + 1.0/5*joints_position[2+bone].z;
+
+
+    //    for(int i = 1; i< 5; i++){
+    //        finger_bone[i] = Mat::zeros(3, 6, CV_32FC1);
+
+    //        finger_bone[i].at<float>(0,0) = joints_position[i*5+bone+2].x;
+    //        finger_bone[i].at<float>(1,0) = joints_position[i*5+bone+2].y;
+    //        finger_bone[i].at<float>(2,0) = joints_position[i*5+bone+2].z;
+
+    //        finger_bone[i].at<float>(0,1) = joints_position[i*5+bone+3].x;
+    //        finger_bone[i].at<float>(1,1) = joints_position[i*5+bone+3].y;
+    //        finger_bone[i].at<float>(2,1) = joints_position[i*5+bone+3].z;
+
+    //        finger_bone[i].at<float>(0,2) = 1.0/5*joints_position[i*5+bone+2].x + 4.0/5*joints_position[i*5+bone+3].x;
+    //        finger_bone[i].at<float>(1,2) = 1.0/5*joints_position[i*5+bone+2].y + 4.0/5*joints_position[i*5+bone+3].y;
+    //        finger_bone[i].at<float>(2,2) = 1.0/5*joints_position[i*5+bone+2].z + 4.0/5*joints_position[i*5+bone+3].z;
+
+    //        finger_bone[i].at<float>(0,3) = 2.0/5*joints_position[i*5+bone+2].x + 3.0/5*joints_position[i*5+bone+3].x;
+    //        finger_bone[i].at<float>(1,3) = 2.0/5*joints_position[i*5+bone+2].y + 3.0/5*joints_position[i*5+bone+3].y;
+    //        finger_bone[i].at<float>(2,3) = 2.0/5*joints_position[i*5+bone+2].z + 3.0/5*joints_position[i*5+bone+3].z;
+
+    //        finger_bone[i].at<float>(0,4) = 3.0/5*joints_position[i*5+bone+2].x + 2.0/5*joints_position[i*5+bone+3].x;
+    //        finger_bone[i].at<float>(1,4) = 3.0/5*joints_position[i*5+bone+2].y + 2.0/5*joints_position[i*5+bone+3].y;
+    //        finger_bone[i].at<float>(2,4) = 3.0/5*joints_position[i*5+bone+2].z + 2.0/5*joints_position[i*5+bone+3].z;
+
+    //        finger_bone[i].at<float>(0,5) = 4.0/5*joints_position[i*5+bone+2].x + 1.0/5*joints_position[i*5+bone+3].x;
+    //        finger_bone[i].at<float>(1,5) = 4.0/5*joints_position[i*5+bone+2].y + 1.0/5*joints_position[i*5+bone+3].y;
+    //        finger_bone[i].at<float>(2,5) = 4.0/5*joints_position[i*5+bone+2].z + 1.0/5*joints_position[i*5+bone+3].z;
+    //    }
+
+    //thumb:
+    finger_bone[0] = Mat::zeros(3, 6, CV_32FC1);
+
+    finger_bone[0].at<float>(0,0) = joints_position[1+bone].x;
+    finger_bone[0].at<float>(1,0) = joints_position[1+bone].y;
+    finger_bone[0].at<float>(2,0) = joints_position[1+bone].z;
+
+    finger_bone[0].at<float>(0,1) = joints_position[2+bone].x;
+    finger_bone[0].at<float>(1,1) = joints_position[2+bone].y;
+    finger_bone[0].at<float>(2,1) = joints_position[2+bone].z;
+
+    finger_bone[0].at<float>(0,2) = 1.0/3*joints_position[1+bone].x + 2.0/3*joints_position[2+bone].x;
+    finger_bone[0].at<float>(1,2) = joints_position[1+bone].y;
+    finger_bone[0].at<float>(2,2) = 1.0/2*joints_position[1+bone].z + 1.0/2*joints_position[2+bone].z;
+
+    finger_bone[0].at<float>(0,3) = 2.0/3*joints_position[1+bone].x + 1.0/3*joints_position[2+bone].x;
+    finger_bone[0].at<float>(1,3) = joints_position[1+bone].y;
+    finger_bone[0].at<float>(2,3) = 1.0/2*joints_position[1+bone].z + 1.0/2*joints_position[2+bone].z;
+
+    finger_bone[0].at<float>(0,4) = joints_position[2+bone].x;
+    finger_bone[0].at<float>(1,4) = 1.0/3*joints_position[1+bone].y + 2.0/3*joints_position[2+bone].y;
+    finger_bone[0].at<float>(2,4) = 1.0/2*joints_position[1+bone].z + 1.0/2*joints_position[2+bone].z;
+
+    finger_bone[0].at<float>(0,5) = joints_position[2+bone].x;
+    finger_bone[0].at<float>(1,5) = 2.0/3*joints_position[1+bone].y + 1.0/3*joints_position[2+bone].y;
+    finger_bone[0].at<float>(2,5) = 1.0/2*joints_position[1+bone].z + 1.0/2*joints_position[2+bone].z;
+
+    //other fingers
+    for(int i = 1; i< 5; i++){
+        finger_bone[i] = Mat::zeros(3, 6, CV_32FC1);
+
+        finger_bone[i].at<float>(0,0) = joints_position[i*5+bone+2].x;
+        finger_bone[i].at<float>(1,0) = joints_position[i*5+bone+2].y;
+        finger_bone[i].at<float>(2,0) = joints_position[i*5+bone+2].z;
+
+        finger_bone[i].at<float>(0,1) = joints_position[i*5+bone+3].x;
+        finger_bone[i].at<float>(1,1) = joints_position[i*5+bone+3].y;
+        finger_bone[i].at<float>(2,1) = joints_position[i*5+bone+3].z;
+
+        finger_bone[i].at<float>(0,2) = 1.0/3*joints_position[i*5+bone+2].x + 2.0/3*joints_position[i*5+bone+3].x;
+        finger_bone[i].at<float>(1,2) = joints_position[i*5+bone+2].y;
+        finger_bone[i].at<float>(2,2) = 1.0/2*joints_position[i*5+bone+2].z + 1.0/2*joints_position[i*5+bone+3].z;
+
+        finger_bone[i].at<float>(0,3) = 2.0/3*joints_position[i*5+bone+2].x + 1.0/3*joints_position[i*5+bone+3].x;
+        finger_bone[i].at<float>(1,3) = joints_position[i*5+bone+2].y;
+        finger_bone[i].at<float>(2,3) = 1.0/2*joints_position[i*5+bone+2].z + 1.0/2*joints_position[i*5+bone+3].z;
+
+        finger_bone[i].at<float>(0,4) = joints_position[i*5+bone+3].x;
+        finger_bone[i].at<float>(1,4) = 1.0/3*joints_position[i*5+bone+2].y + 2.0/3*joints_position[i*5+bone+3].y;
+        finger_bone[i].at<float>(2,4) = 1.0/2*joints_position[i*5+bone+2].z + 1.0/2*joints_position[i*5+bone+3].z;
+
+        finger_bone[i].at<float>(0,5) = joints_position[i*5+bone+3].x;
+        finger_bone[i].at<float>(1,5) = 2.0/3*joints_position[i*5+bone+2].y + 1.0/3*joints_position[i*5+bone+3].y;
+        finger_bone[i].at<float>(2,5) = 1.0/2*joints_position[i*5+bone+2].z + 1.0/2*joints_position[i*5+bone+3].z;
+    }
+    Mat finger_bone_discrete[5];
+    for(int i = 0; i<5; i++){
+        finger_bone_discrete[i] = finger_bone[i]*1000/resolution+imageSize/2;
+    }
+
+    //1.2 find nearest neighbour:
+    double temp_dis[5][6];
+    for(int i = 0; i< 5; i++)
+        for(int j = 0; j < 6; j++)
+            temp_dis[i][j] = 10000;
+
+    int temp_row[5][6], temp_col[5][6];
+
+    for( int row = 0; row < LabelMat.rows; row++){
+        for(int col = 0; col < LabelMat.cols; col++){
+            switch(int(LabelMat.at<unsigned char>(row, col))-bone){
+            //thumb proximal
+            case 5:
+            {
+                double dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,1)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,1))+
+                        (row - finger_bone_discrete[0].at<float>(1,1)) * (row - finger_bone_discrete[0].at<float>(1,1)) +
+                        (col - finger_bone_discrete[0].at<float>(0,1)) * (col - finger_bone_discrete[0].at<float>(0,1));
+                if (dis < temp_dis[0][1]){
+                    temp_row[0][1] = row;
+                    temp_col[0][1]= col;
+                    temp_dis[0][1] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,2)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,2))+
+                        (row - finger_bone_discrete[0].at<float>(1,2)) * (row - finger_bone_discrete[0].at<float>(1,2)) +
+                        (col - finger_bone_discrete[0].at<float>(0,2)) * (col - finger_bone_discrete[0].at<float>(0,2));
+                if (dis < temp_dis[0][2]){
+                    temp_row[0][2] = row;
+                    temp_col[0][2]= col;
+                    temp_dis[0][2] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,3)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,3))+
+                        (row - finger_bone_discrete[0].at<float>(1,3)) * (row - finger_bone_discrete[0].at<float>(1,3)) +
+                        (col - finger_bone_discrete[0].at<float>(0,3)) * (col - finger_bone_discrete[0].at<float>(0,3));
+                if (dis < temp_dis[0][3]){
+                    temp_row[0][3] = row;
+                    temp_col[0][3]= col;
+                    temp_dis[0][3] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,4)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,4))+
+                        (row - finger_bone_discrete[0].at<float>(1,4)) * (row - finger_bone_discrete[0].at<float>(1,4)) +
+                        (col - finger_bone_discrete[0].at<float>(0,4)) * (col - finger_bone_discrete[0].at<float>(0,4));
+                if (dis < temp_dis[0][4]){
+                    temp_row[0][4] = row;
+                    temp_col[0][4]= col;
+                    temp_dis[0][4] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,5)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[0].at<float>(2,5))+
+                        (row - finger_bone_discrete[0].at<float>(1,5)) * (row - finger_bone_discrete[0].at<float>(1,5)) +
+                        (col - finger_bone_discrete[0].at<float>(0,5)) * (col - finger_bone_discrete[0].at<float>(0,5));
+                if (dis < temp_dis[0][5]){
+                    temp_row[0][5] = row;
+                    temp_col[0][5]= col;
+                    temp_dis[0][5] = dis;
+                }
+
+                break;
+            }
+
+                //index finger proximal
+            case 8:
+            {
+                double dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,1)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,1))+
+                        (row - finger_bone_discrete[1].at<float>(1,1)) * (row - finger_bone_discrete[1].at<float>(1,1)) +
+                        (col - finger_bone_discrete[1].at<float>(0,1)) * (col - finger_bone_discrete[1].at<float>(0,1));
+                if (dis < temp_dis[1][1]){
+                    temp_row[1][1] = row;
+                    temp_col[1][1]= col;
+                    temp_dis[1][1] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,2)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,2))+
+                        (row - finger_bone_discrete[1].at<float>(1,2)) * (row - finger_bone_discrete[1].at<float>(1,2)) +
+                        (col - finger_bone_discrete[1].at<float>(0,2)) * (col - finger_bone_discrete[1].at<float>(0,2));
+                if (dis < temp_dis[1][2]){
+                    temp_row[1][2] = row;
+                    temp_col[1][2]= col;
+                    temp_dis[1][2] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,3)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,3))+
+                        (row - finger_bone_discrete[1].at<float>(1,3)) * (row - finger_bone_discrete[1].at<float>(1,3)) +
+                        (col - finger_bone_discrete[1].at<float>(0,3)) * (col - finger_bone_discrete[1].at<float>(0,3));
+                if (dis < temp_dis[1][3]){
+                    temp_row[1][3] = row;
+                    temp_col[1][3]= col;
+                    temp_dis[1][3] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,4)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,4))+
+                        (row - finger_bone_discrete[1].at<float>(1,4)) * (row - finger_bone_discrete[1].at<float>(1,4)) +
+                        (col - finger_bone_discrete[1].at<float>(0,4)) * (col - finger_bone_discrete[1].at<float>(0,4));
+                if (dis < temp_dis[1][4]){
+                    temp_row[1][4] = row;
+                    temp_col[1][4]= col;
+                    temp_dis[1][4] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,5)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[1].at<float>(2,5))+
+                        (row - finger_bone_discrete[1].at<float>(1,5)) * (row - finger_bone_discrete[1].at<float>(1,5)) +
+                        (col - finger_bone_discrete[1].at<float>(0,5)) * (col - finger_bone_discrete[1].at<float>(0,5));
+                if (dis < temp_dis[1][5]){
+                    temp_row[1][5] = row;
+                    temp_col[1][5]= col;
+                    temp_dis[1][5] = dis;
+                }
+
+                break;
+            }
+
+                //middle finger proximal
+            case 11:
+            {
+                double dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,1)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,1))+
+                        (row - finger_bone_discrete[2].at<float>(1,1)) * (row - finger_bone_discrete[2].at<float>(1,1)) +
+                        (col - finger_bone_discrete[2].at<float>(0,1)) * (col - finger_bone_discrete[2].at<float>(0,1));
+                if (dis < temp_dis[2][1]){
+                    temp_row[2][1] = row;
+                    temp_col[2][1]= col;
+                    temp_dis[2][1] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,2)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,2))+
+                        (row - finger_bone_discrete[2].at<float>(1,2)) * (row - finger_bone_discrete[2].at<float>(1,2)) +
+                        (col - finger_bone_discrete[2].at<float>(0,2)) * (col - finger_bone_discrete[2].at<float>(0,2));
+                if (dis < temp_dis[2][2]){
+                    temp_row[2][2] = row;
+                    temp_col[2][2]= col;
+                    temp_dis[2][2] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,3)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,3))+
+                        (row - finger_bone_discrete[2].at<float>(1,3)) * (row - finger_bone_discrete[2].at<float>(1,3)) +
+                        (col - finger_bone_discrete[2].at<float>(0,3)) * (col - finger_bone_discrete[2].at<float>(0,3));
+                if (dis < temp_dis[2][3]){
+                    temp_row[2][3] = row;
+                    temp_col[2][3]= col;
+                    temp_dis[2][3] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,4)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,4))+
+                        (row - finger_bone_discrete[2].at<float>(1,4)) * (row - finger_bone_discrete[2].at<float>(1,4)) +
+                        (col - finger_bone_discrete[2].at<float>(0,4)) * (col - finger_bone_discrete[2].at<float>(0,4));
+                if (dis < temp_dis[2][4]){
+                    temp_row[2][4] = row;
+                    temp_col[2][4]= col;
+                    temp_dis[2][4] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,5)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[2].at<float>(2,5))+
+                        (row - finger_bone_discrete[2].at<float>(1,5)) * (row - finger_bone_discrete[2].at<float>(1,5)) +
+                        (col - finger_bone_discrete[2].at<float>(0,5)) * (col - finger_bone_discrete[2].at<float>(0,5));
+                if (dis < temp_dis[2][5]){
+                    temp_row[2][5] = row;
+                    temp_col[2][5]= col;
+                    temp_dis[2][5] = dis;
+                }
+
+                break;
+            }
+
+                //ring finger proximal
+            case 14:
+            {
+                double dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,1)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,1))+
+                        (row - finger_bone_discrete[3].at<float>(1,1)) * (row - finger_bone_discrete[3].at<float>(1,1)) +
+                        (col - finger_bone_discrete[3].at<float>(0,1)) * (col - finger_bone_discrete[3].at<float>(0,1));
+                //std::cout<< "dis1: " <<dis <<" " << row<< " " << col << " " << int(Hand_DepthMat.at<unsigned char>(row, col)) << std::endl;
+                if (dis < temp_dis[3][1]){
+                    temp_row[3][1] = row;
+                    temp_col[3][1]= col;
+                    temp_dis[3][1] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,2)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,2))+
+                        (row - finger_bone_discrete[3].at<float>(1,2)) * (row - finger_bone_discrete[3].at<float>(1,2)) +
+                        (col - finger_bone_discrete[3].at<float>(0,2)) * (col - finger_bone_discrete[3].at<float>(0,2));
+                //std::cout<< "dis2: " <<dis <<std::endl;
+                if (dis < temp_dis[3][2]){
+                    temp_row[3][2] = row;
+                    temp_col[3][2]= col;
+                    temp_dis[3][2] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,3)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,3))+
+                        (row - finger_bone_discrete[3].at<float>(1,3)) * (row - finger_bone_discrete[3].at<float>(1,3)) +
+                        (col - finger_bone_discrete[3].at<float>(0,3)) * (col - finger_bone_discrete[3].at<float>(0,3));
+                if (dis < temp_dis[3][3]){
+                    temp_row[3][3] = row;
+                    temp_col[3][3]= col;
+                    temp_dis[3][3] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,4)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,4))+
+                        (row - finger_bone_discrete[3].at<float>(1,4)) * (row - finger_bone_discrete[3].at<float>(1,4)) +
+                        (col - finger_bone_discrete[3].at<float>(0,4)) * (col - finger_bone_discrete[3].at<float>(0,4));
+                if (dis < temp_dis[3][4]){
+                    temp_row[3][4] = row;
+                    temp_col[3][4]= col;
+                    temp_dis[3][4] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,5)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[3].at<float>(2,5))+
+                        (row - finger_bone_discrete[3].at<float>(1,5)) * (row - finger_bone_discrete[3].at<float>(1,5)) +
+                        (col - finger_bone_discrete[3].at<float>(0,5)) * (col - finger_bone_discrete[3].at<float>(0,5));
+                if (dis < temp_dis[3][5]){
+                    temp_row[3][5] = row;
+                    temp_col[3][5]= col;
+                    temp_dis[3][5] = dis;
+                }
+
+                break;
+            }
+
+                //little finger proximal
+            case 17:
+            {
+                double dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,1)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,1))+
+                        (row - finger_bone_discrete[4].at<float>(1,1)) * (row - finger_bone_discrete[4].at<float>(1,1)) +
+                        (col - finger_bone_discrete[4].at<float>(0,1)) * (col - finger_bone_discrete[4].at<float>(0,1));
+                if (dis < temp_dis[4][1]){
+                    temp_row[4][1] = row;
+                    temp_col[4][1]= col;
+                    temp_dis[4][1] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,2)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,2))+
+                        (row - finger_bone_discrete[4].at<float>(1,2)) * (row - finger_bone_discrete[4].at<float>(1,2)) +
+                        (col - finger_bone_discrete[4].at<float>(0,2)) * (col - finger_bone_discrete[4].at<float>(0,2));
+                if (dis < temp_dis[4][2]){
+                    temp_row[4][2] = row;
+                    temp_col[4][2]= col;
+                    temp_dis[4][2] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,3)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,3))+
+                        (row - finger_bone_discrete[4].at<float>(1,3)) * (row - finger_bone_discrete[4].at<float>(1,3)) +
+                        (col - finger_bone_discrete[4].at<float>(0,3)) * (col - finger_bone_discrete[4].at<float>(0,3));
+                if (dis < temp_dis[4][3]){
+                    temp_row[4][3] = row;
+                    temp_col[4][3]= col;
+                    temp_dis[4][3] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,4)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,4))+
+                        (row - finger_bone_discrete[4].at<float>(1,4)) * (row - finger_bone_discrete[4].at<float>(1,4)) +
+                        (col - finger_bone_discrete[4].at<float>(0,4)) * (col - finger_bone_discrete[4].at<float>(0,4));
+                if (dis < temp_dis[4][4]){
+                    temp_row[4][4] = row;
+                    temp_col[4][4]= col;
+                    temp_dis[4][4] = dis;
+                }
+
+                dis = (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,5)) * (Hand_DepthMat.at<unsigned char>(row, col) - finger_bone_discrete[4].at<float>(2,5))+
+                        (row - finger_bone_discrete[4].at<float>(1,5)) * (row - finger_bone_discrete[4].at<float>(1,5)) +
+                        (col - finger_bone_discrete[4].at<float>(0,5)) * (col - finger_bone_discrete[4].at<float>(0,5));
+                if (dis < temp_dis[4][5]){
+                    temp_row[4][5] = row;
+                    temp_col[4][5]= col;
+                    temp_dis[4][5] = dis;
+                }
+
+            }
+
+            default:
+            {
+                ;
+            }
+
+            }
+        }
+    }
+
+    //1.3 estimate palm pose:
+    //1.3.1 put nearest neighbour back to 3D space:
+    //    ROS_INFO("Here!");
+    //    for(int i = 0; i<5; i++){
+    //        std::cout << "finger discrete " <<i<< ": " << finger_bone_discrete[i] <<std::endl;
+    //    }
+    Mat Oberservation[5];
+    for(int f = 0; f< 5; f++){
+        Oberservation[f]= Mat::zeros(3, 6, CV_32FC1);
+        // ROS_INFO("Here2!");
+        for(int i = 1; i < 6; i++){
+            Oberservation[f].at<float>(0,i) = (temp_col[f][i]-imageSize/2.0)*resolution/1000.0;
+            Oberservation[f].at<float>(1,i) = (temp_row[f][i]-imageSize/2.0)*resolution/1000.0;
+            //std::cout<< f << ", " << i << ": " << int(Hand_DepthMat.at<unsigned char>(temp_row[f][i], temp_col[f][i]))<<std::endl;
+            Oberservation[f].at<float>(2,i) = (Hand_DepthMat.at<unsigned char>(temp_row[f][i], temp_col[f][i])-imageSize/2.0)*resolution/1000.0;
+        }
+
+    }
+    //ROS_INFO("Here3!");
+    Oberservation[0].at<float>(0,0) = joints_position[1+bone].x;
+    Oberservation[0].at<float>(1,0) = joints_position[1+bone].y;
+    Oberservation[0].at<float>(2,0) = joints_position[1+bone].z;
+    for(int f = 1; f< 5; f++){
+        Oberservation[f].at<float>(0,0) = joints_position[f*5+bone+2].x;
+        Oberservation[f].at<float>(1,0) = joints_position[f*5+bone+2].y;
+        Oberservation[f].at<float>(2,0) = joints_position[f*5+bone+2].z;
+    }
+
+
+    //1.3.2 compute
+    Mat R,t, p2, p1;
+    p1 = Mat::zeros(3,1,CV_32FC1);
+    p2 = Mat::zeros(3,1,CV_32FC1);
+    poseEstimate::poseestimate::compute(Oberservation[0],finger_bone[0],R,t);
+    p2.at<float>(0,0) = joints_position[2+bone].x;
+    p2.at<float>(1,0) = joints_position[2+bone].y;
+    p2.at<float>(2,0) = joints_position[2+bone].z;
+
+    p1.at<float>(0,0) = joints_position[1+bone].x;
+    p1.at<float>(1,0) = joints_position[1+bone].y;
+    p1.at<float>(2,0) = joints_position[1+bone].z;
+    Mat len = ((p2-p1).t() *(p2 - p1));
+    p2 = R*(p2-p1)/sqrt(len.at<float>(0,0))*bone_length[0][bone]/1000.0+p1;
+
+    joints_position[2+bone].x = p2.at<float>(0,0);
+    joints_position[2+bone].y = p2.at<float>(1,0);
+    joints_position[2+bone].z = p2.at<float>(2,0);
+
+    for(int f = 1; f < 5; f++){
+
+        poseEstimate::poseestimate::compute(Oberservation[f],finger_bone[f],R,t);
+        p2.at<float>(0,0) = joints_position[f*5+bone+3].x;
+        p2.at<float>(1,0) = joints_position[f*5+bone+3].y;
+        p2.at<float>(2,0) = joints_position[f*5+bone+3].z;
+
+        p1.at<float>(0,0) = joints_position[f*5+bone+2].x;
+        p1.at<float>(1,0) = joints_position[f*5+bone+2].y;
+        p1.at<float>(2,0) = joints_position[f*5+bone+2].z;
+
+        len = ((p2-p1).t() *(p2 - p1));
+        p2 = R*(p2-p1)/sqrt(len.at<float>(0,0))*bone_length[f][bone+1]/1000.0+p1;
+        //std::cout << f << ", " << bone << ": " << (p2-p1).t() *(p2 - p1)  << std::endl;
+
+        joints_position[f*5+bone+3].x = p2.at<float>(0,0);
+        joints_position[f*5+bone+3].y = p2.at<float>(1,0);
+        joints_position[f*5+bone+3].z = p2.at<float>(2,0);
+
+    }
+
+    if(bone == 2)
+        joints_position[5] = joints_position[4];
+
+}
+
+void articulate_HandModel_XYZRGB::constrain_based_smooth(int number_of_joints){
+    Point3d w[5];
+    //thumb:
+
+    //other fingers:
+    for(int f = 1; f < 5; f++){
+        Mat joints_for_calc = Mat::zeros(3,1,CV_32FC1);
+        virtual_joints[f].copyTo(joints_for_calc);
+        //calculate the point directly over palm end joint:
+        Mat R_p_r_y = R_z(parameters[5])*R_y(parameters[4])*R_x(parameters[3]);
+        //std::cout << "R: " << R_p_r_y << std::endl;
+        Mat translation = Mat::zeros(3,1,CV_32FC1);
+        translation.at<float>(0,0) = parameters[0];
+        translation.at<float>(1,0) = parameters[1];
+        translation.at<float>(2,0) = parameters[2];
+
+        //std::cout << "translation: " << translation << std::endl;
+        joints_for_calc = R_p_r_y * joints_for_calc+translation;
+        //calculate plane:
+        Point3d temp_w[number_of_joints];
+        for(int i = 0; i<number_of_joints; i++){
+            float dx1 = joints_for_calc.at<float>(0,0) - joints_position[5*f+2].x;
+            float dy1 = joints_for_calc.at<float>(1,0) - joints_position[5*f+2].y;
+            float dz1 = joints_for_calc.at<float>(2,0) - joints_position[5*f+2].z;
+
+            float dx2 = joints_position[5*f+3+i].x - joints_position[5*f+2].x;
+            float dy2 = joints_position[5*f+3+i].y - joints_position[5*f+2].y;
+            float dz2 = joints_position[5*f+3+i].z - joints_position[5*f+2].z;
+
+            temp_w[i].x = 1;
+            temp_w[i].y = (dx2*dz1-dx1*dz2)/(dy1*dz2-dy2*dz1);
+            temp_w[i].z = (dx2*dy1-dx1*dy2)/(dy2*dz1-dy1*dz2);
+
+            float length = sqrt(temp_w[i].x * temp_w[i].x + temp_w[i].y * temp_w[i].y + temp_w[i].z * temp_w[i].z);
+            temp_w[i].x = temp_w[i].x/length;
+            temp_w[i].y = temp_w[i].y/length;
+            temp_w[i].z = temp_w[i].z/length;
+        }
+        //plane: a = w[f].x; b = w[f].y; c = w[f].z;
+        if(number_of_joints == 3){
+        w[f].x = (temp_w[0].x*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                  temp_w[1].x*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+
+                  temp_w[2].x*Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]))/
+                (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]));
+        w[f].y = (temp_w[0].y*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                  temp_w[1].y*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+
+                  temp_w[2].y*Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]))/
+                (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]));
+        w[f].z = (temp_w[0].z*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                  temp_w[1].z*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+
+                  temp_w[2].z*Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]))/
+                (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]));
+        }
+        else if (number_of_joints == 2){
+            w[f].x = (temp_w[0].x*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                      temp_w[1].x*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2]))/
+                    (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2]));
+            w[f].y = (temp_w[0].y*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                      temp_w[1].y*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2]))/
+                    (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2]));
+            w[f].z = (temp_w[0].z*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                      temp_w[1].z*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2]))/
+                    (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2]));
+        }
+        else{
+            w[f] = temp_w[0];
+        }
+        std::cout << f << ": " << w[f] << std::endl;
+
+        for(int b = 0; b<number_of_joints; b++){
+            Point3d v;
+            v.x = joints_position[5*f+3+b].x - joints_position[5*f+2].x;
+            v.y = joints_position[5*f+3+b].y - joints_position[5*f+2].y;
+            v.z = joints_position[5*f+3+b].z - joints_position[5*f+2].z;
+            float dist = v.x*w[f].x + v.y*w[f].y + v.z*w[f].z;
+            joints_position[5*f+3+b].x = joints_position[5*f+3+b].x - dist*w[f].x;
+            joints_position[5*f+3+b].y = joints_position[5*f+3+b].y - dist*w[f].y;
+            joints_position[5*f+3+b].z = joints_position[5*f+3+b].z - dist*w[f].z;
+        }
+
+    }
+}
+
+void articulate_HandModel_XYZRGB::trial(){
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_in (new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_out (new pcl::PointCloud<pcl::PointXYZ>);
+
+    // Fill in the CloudIn data
+    cloud_in->width    = 2;
+    cloud_in->height   = 5;
+    cloud_in->is_dense = false;
+    cloud_in->points.resize (cloud_in->width * cloud_in->height);
+    for (size_t i = 0; i < cloud_in->points.size (); ++i)
+    {
+        cloud_in->points[i].x = 1024 * rand () / (RAND_MAX + 1.0f);
+        cloud_in->points[i].y = 1024 * rand () / (RAND_MAX + 1.0f);
+        cloud_in->points[i].z = 1024 * rand () / (RAND_MAX + 1.0f);
+    }
+    std::cout << "Saved " << cloud_in->points.size () << " data points to input:"
+              << std::endl;
+    for (size_t i = 0; i < cloud_in->points.size (); ++i) std::cout << "    " <<
+                                                                       cloud_in->points[i].x << " " << cloud_in->points[i].y << " " <<
+                                                                       cloud_in->points[i].z << std::endl;
+    *cloud_out = *cloud_in;
+    cloud_out->points.resize (cloud_in->width * cloud_in->height);
+    std::cout << "size:" << cloud_out->points.size() << std::endl;
+    for (size_t i = 0; i < cloud_in->points.size (); ++i)
+        cloud_out->points[i].x = cloud_in->points[i].x + 0.7f;
+    std::cout << "Transformed " << cloud_in->points.size () << " data points:"
+              << std::endl;
+    for (size_t i = 0; i < cloud_out->points.size (); ++i)
+        std::cout << "    " << cloud_out->points[i].x << " " <<
+                     cloud_out->points[i].y << " " << cloud_out->points[i].z << std::endl;
+    pcl::IterativeClosestPoint<pcl::PointXYZ, pcl::PointXYZ> icp;
+    icp.setInputCloud(cloud_in);
+    icp.setInputTarget(cloud_out);
+    pcl::PointCloud<pcl::PointXYZ> Final;
+    icp.align(Final);
+    std::cout << "has converged:" << icp.hasConverged() << " score: " <<
+                 icp.getFitnessScore() << std::endl;
+    std::cout << icp.getFinalTransformation() << std::endl;
+
+    return;
+}
 
 
 

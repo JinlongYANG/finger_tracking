@@ -48,8 +48,10 @@ Finger_tracking_Node::Finger_tracking_Node(ros::NodeHandle& nh):
 
     handPublisher_ = nh.advertise<sensor_msgs::PointCloud2>("Hand",0);
     articulatePublisher_ = nh.advertise<sensor_msgs::PointCloud2>("Articulate",0);
+
     necloudPublisher_  = nh.advertise<sensor_msgs::PointCloud2>("Norms",0);
     bone_pub_ = nh.advertise<visualization_msgs::Marker>("Bones", 0);
+    leap_articulate_pub_ = nh.advertise<visualization_msgs::Marker>("Leap_Articulate",0);
 
     timeSynchronizer_.registerCallback(boost::bind(&Finger_tracking_Node::syncedCallback, this, _1, _2, _3));
     //reconfigureServer_.setCallback(reconfigureCallback_);
@@ -197,28 +199,87 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
 
         ///////////////////////////////////////////////////////////
         //**************    Hand Model   ************************//
-        pcl::PointCloud<pcl::PointXYZRGB> articulation;
-        articulate_HandModel_XYZRGB Hand_model;
+        pcl::PointCloud<pcl::PointXYZRGB> articulation, leap_articulation;
+        articulate_HandModel_XYZRGB Hand_model, Leap_hand;
+
+        //read in leap motion oberservation
+        Leap_hand.set_joints_positions(hand1_kp);
+        Hand_model.set_joints_positions(hand1_kp);
+        Hand_model.get_parameters();
+        Hand_model.get_joints_positions();
 
         Hand_model.set_parameters();
         Hand_model.get_joints_positions();
-        //Hand_model.get_parameters();
+        //        //Hand_model.get_parameters();
         //Palm ICP
         for(int iteration_Number = 0; iteration_Number < 5; iteration_Number++){
-        Hand_model.CP_palm_fitting1(Hand_DepthMat,LabelMat, resolution);
-        Hand_model.get_joints_positions();
+            Hand_model.CP_palm_fitting1(Hand_DepthMat,LabelMat, resolution);
+            Hand_model.get_joints_positions();
         }
 
-        //Proximal fitting:
-        Hand_model.finger_fitting(Hand_DepthMat,LabelMat, resolution, 0);
-        //Intermediate fitting:
-        Hand_model.finger_fitting(Hand_DepthMat,LabelMat, resolution, 1);
-        //distal fitting:
-        Hand_model.finger_fitting(Hand_DepthMat,LabelMat, resolution, 2);
+        for(int ite = 0; ite < 2; ite++){
+            //Proximal fitting:
+            for(int i = 0; i < 2; i++){
+                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 0);
+            }
+            //Intermediate fitting:
+            for(int i = 0; i < 2; i++){
+                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 1);
+                Hand_model.constrain_based_smooth( 2 );
+            }
+            //distal fitting:
+            for(int i = 0; i < 2; i++){
+                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 2);
+                Hand_model.constrain_based_smooth( 3 );
+            }
+
+            //constrain based smooth
+
+        }
+        //        Hand_model.get_parameters();
+        //        Hand_model.get_joints_positions();
+
+        //        //
+        //        //Hand_model.finger_fitting2_proximal(Hand_DepthMat,LabelMat, resolution);
+
+        //        Hand_model.trial();
+
+
+
+        //        pcl::PointXYZRGB raw_joints_positions[26];
+        //        for(int i = 0; i < 26; i++){
+        //            raw_joints_positions[i] = Hand_model.joints_position[i];
+        //        }
+        //        for(int iter = 0; iter < 5; iter++){
+        //            Hand_model.get_parameters();
+        //            Hand_model.get_joints_positions();
+        //            for(int i = 0; i < 26; i++){
+        //                Hand_model.joints_position[i].x = 0.9*raw_joints_positions[i].x + 0.1*Hand_model.joints_position[i].x;
+        //                Hand_model.joints_position[i].y = 0.9*raw_joints_positions[i].y + 0.1*Hand_model.joints_position[i].y;
+        //                Hand_model.joints_position[i].z = 0.9*raw_joints_positions[i].z + 0.1*Hand_model.joints_position[i].z;
+        //            }
+        //        }
+
+        //        Hand_model.get_parameters();
+        //        Hand_model.get_joints_positions();
+
+
+
 
         for(int i = 0; i < 26; i++){
             articulation.push_back(Hand_model.joints_position[i]);
+            SegmentMat.at<unsigned char>(int(Hand_model.joints_position[i].y*1000)/resolution + imageSize/2,
+                                         3*(int(Hand_model.joints_position[i].x*1000)/resolution + imageSize/2)+2) = 180;
+            SegmentMat.at<unsigned char>(int(Hand_model.joints_position[i].y*1000)/resolution + imageSize/2,
+                                         3*(int(Hand_model.joints_position[i].x*1000)/resolution + imageSize/2)+1) = 180;
+            SegmentMat.at<unsigned char>(int(Hand_model.joints_position[i].y*1000)/resolution + imageSize/2,
+                                         3*(int(Hand_model.joints_position[i].x*1000)/resolution + imageSize/2)+0) = 0;
+            leap_articulation.push_back(Leap_hand.joints_position[i]);
         }
+
+
+
+
 
 
 
@@ -267,40 +328,88 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         bone.color.g = 1.0;
         for(int finger = 0; finger <5; finger++){
             for(int i = 1; i< 5; i++){
+                geometry_msgs::Point p2;
+                p2.x = articulation.points[5*finger+i].x;
+                p2.y = articulation.points[5*finger+i].y;
+                p2.z = articulation.points[5*finger+i].z;
+                bone.points.push_back(p2);
+                p2.x = articulation.points[5*finger+i+1].x;
+                p2.y = articulation.points[5*finger+i+1].y;
+                p2.z = articulation.points[5*finger+i+1].z;
+                bone.points.push_back(p2);
+            }
+        }
+        for(int i = 0; i< 2; i++){
+            for(int j = 0; j< 3; j++){
+                geometry_msgs::Point p2;
+                p2.x = articulation.points[6+5*j+i].x;
+                p2.y = articulation.points[6+5*j+i].y;
+                p2.z = articulation.points[6+5*j+i].z;
+                bone.points.push_back(p2);
+                p2.x = articulation.points[6+5*j+5+i].x;
+                p2.y = articulation.points[6+5*j+5+i].y;
+                p2.z = articulation.points[6+5*j+5+i].z;
+                bone.points.push_back(p2);
+            }
+        }
+        geometry_msgs::Point p2;
+        p2.x = articulation.points[1].x;
+        p2.y = articulation.points[1].y;
+        p2.z = articulation.points[1].z;
+        bone.points.push_back(p2);
+        p2.x = articulation.points[6].x;
+        p2.y = articulation.points[6].y;
+        p2.z = articulation.points[6].z;
+        bone.points.push_back(p2);
+        bone_pub_.publish( bone );
+        ///////////////////////
+        visualization_msgs::Marker bone_leap;
+        bone_leap.header.frame_id = hand_kp_pter->header.frame_id;
+        bone_leap.header.stamp = hand_kp_pter->header.stamp;
+        bone_leap.ns = "finger_tracking";
+        bone_leap.type = visualization_msgs::Marker::LINE_LIST;
+        bone_leap.id = 0;
+        bone_leap.action = visualization_msgs::Marker::ADD;
+        bone_leap.pose.orientation.w = 1.0;
+        bone_leap.scale.x = 0.001;
+        bone_leap.color.a = 1.0;
+        bone_leap.color.r = 1.0;
+        for(int finger = 0; finger <5; finger++){
+            for(int i = 1; i< 5; i++){
                 geometry_msgs::Point p;
-                p.x = articulation.points[5*finger+i].x;
-                p.y = articulation.points[5*finger+i].y;
-                p.z = articulation.points[5*finger+i].z;
-                bone.points.push_back(p);
-                p.x = articulation.points[5*finger+i+1].x;
-                p.y = articulation.points[5*finger+i+1].y;
-                p.z = articulation.points[5*finger+i+1].z;
-                bone.points.push_back(p);
+                p.x = leap_articulation.points[5*finger+i].x;
+                p.y = leap_articulation.points[5*finger+i].y;
+                p.z = leap_articulation.points[5*finger+i].z;
+                bone_leap.points.push_back(p);
+                p.x = leap_articulation.points[5*finger+i+1].x;
+                p.y = leap_articulation.points[5*finger+i+1].y;
+                p.z = leap_articulation.points[5*finger+i+1].z;
+                bone_leap.points.push_back(p);
             }
         }
         for(int i = 0; i< 2; i++){
             for(int j = 0; j< 3; j++){
                 geometry_msgs::Point p;
-                p.x = articulation.points[6+5*j+i].x;
-                p.y = articulation.points[6+5*j+i].y;
-                p.z = articulation.points[6+5*j+i].z;
-                bone.points.push_back(p);
-                p.x = articulation.points[6+5*j+5+i].x;
-                p.y = articulation.points[6+5*j+5+i].y;
-                p.z = articulation.points[6+5*j+5+i].z;
-                bone.points.push_back(p);
+                p.x = leap_articulation.points[6+5*j+i].x;
+                p.y = leap_articulation.points[6+5*j+i].y;
+                p.z = leap_articulation.points[6+5*j+i].z;
+                bone_leap.points.push_back(p);
+                p.x = leap_articulation.points[6+5*j+5+i].x;
+                p.y = leap_articulation.points[6+5*j+5+i].y;
+                p.z = leap_articulation.points[6+5*j+5+i].z;
+                bone_leap.points.push_back(p);
             }
         }
         geometry_msgs::Point p;
-        p.x = articulation.points[1].x;
-        p.y = articulation.points[1].y;
-        p.z = articulation.points[1].z;
-        bone.points.push_back(p);
-        p.x = articulation.points[6].x;
-        p.y = articulation.points[6].y;
-        p.z = articulation.points[6].z;
-        bone.points.push_back(p);
-        bone_pub_.publish( bone );
+        p.x = leap_articulation.points[1].x;
+        p.y = leap_articulation.points[1].y;
+        p.z = leap_articulation.points[1].z;
+        bone_leap.points.push_back(p);
+        p.x = leap_articulation.points[6].x;
+        p.y = leap_articulation.points[6].y;
+        p.z = leap_articulation.points[6].z;
+        bone_leap.points.push_back(p);
+        leap_articulate_pub_.publish( bone_leap );
 
         ros::Time time9 = ros::Time::now();
         std::cout<<"FPS: "<< time9-time0 << std::endl;

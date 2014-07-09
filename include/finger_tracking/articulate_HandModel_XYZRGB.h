@@ -106,6 +106,8 @@
 #include <opencv2/core/core.hpp>
 #include <pcl_ros/point_cloud.h>
 #include <pcl/point_types.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/registration/icp.h>
 
 using namespace cv;
 
@@ -122,17 +124,23 @@ public:
     float bone_length[5][4];
     pcl::PointXYZRGB joints_position[26];
     Mat Model_joints[26];
+    Mat virtual_joints[5];
     Mat palm_model;
 
 
     bool check_parameters(int & wrong_parameter_index);
     void set_parameters();
     void get_parameters();
-    void set_joints_positions();
+    void set_joints_positions(pcl::PointCloud<pcl::PointXYZRGB> hand_kp);
     void get_joints_positions();
 
     void CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMat, int resolution);
     void finger_fitting(Mat Hand_DepthMat,Mat LabelMat, int resolution, int bone);
+
+    void finger_fitting2(Mat Hand_DepthMat, Mat LabelMat, int resolution, int bone);
+    void constrain_based_smooth(int number_of_joints);
+
+    void trial();
 
 private:
 

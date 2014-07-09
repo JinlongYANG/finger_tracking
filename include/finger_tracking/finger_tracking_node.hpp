@@ -71,6 +71,7 @@ public:
     //    tf2_ros::TransformListener transformListener_;
     
     ros::Publisher articulatePublisher_;
+    ros::Publisher leap_articulate_pub_;
     ros::Publisher handPublisher_;
     ros::Publisher necloudPublisher_;
     ros::Publisher bone_pub_;
