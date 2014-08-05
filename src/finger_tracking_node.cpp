@@ -25,6 +25,10 @@ float finger_length = 0.07;
 int resolution = 2;
 //30cm *30cm for hand
 int imageSize = 300/resolution;
+bool flag_leap = true;
+pcl::PointXYZRGB my_hand_kp[31];
+pcl::PointXYZRGB last_joints_position[26];
+
 
 
 
@@ -172,15 +176,30 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         ros::Time time1 = ros::Time::now();
 
         pcl::PointCloud<pcl::PointXYZRGB> Hand_kp_2d;
-        for(int i = 0; i < 31; i++){
-            pcl::PointXYZRGB p_2d;
-            int x = int(hand1_kp.points[i] . x *1000);
-            int y = int(hand1_kp.points[i] . y *1000);
-            int z = int(hand1_kp.points[i] . z *1000);
-            p_2d.x = y/resolution + imageSize/2;
-            p_2d.y = x/resolution + imageSize/2;
-            p_2d.z = z/resolution + imageSize/2;
-            Hand_kp_2d.push_back(p_2d);
+        if(flag_leap == true){
+            ROS_INFO("Flag leap true!");
+            for(int i = 0; i < 31; i++){
+                pcl::PointXYZRGB p_2d;
+                int x = int(hand1_kp.points[i] . x *1000);
+                int y = int(hand1_kp.points[i] . y *1000);
+                int z = int(hand1_kp.points[i] . z *1000);
+                p_2d.x = y/resolution + imageSize/2;
+                p_2d.y = x/resolution + imageSize/2;
+                p_2d.z = z/resolution + imageSize/2;
+                Hand_kp_2d.push_back(p_2d);
+            }
+        }
+        else {
+            for(int i = 0; i < 31; i++){
+                pcl::PointXYZRGB p_2d;
+                int x = int(my_hand_kp[i] . x *1000);
+                int y = int(my_hand_kp[i] . y *1000);
+                int z = int(my_hand_kp[i] . z *1000);
+                p_2d.x = y/resolution + imageSize/2;
+                p_2d.y = x/resolution + imageSize/2;
+                p_2d.z = z/resolution + imageSize/2;
+                Hand_kp_2d.push_back(p_2d);
+            }
         }
         //        std::cout << "Hand_kp_2d: " << std::endl;
         //        for (int i = 0; i<31; i++){
@@ -195,7 +214,21 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         ros::Time time2 = ros::Time::now();
         std::cout<<"Time: "<< time2 - time1 << std::endl;
 
+        vector< vector<pcl::PointXYZ> > labelPointXYZ(20, vector<pcl::PointXYZ>());
+        Image2Label(Hand_DepthMat, LabelMat, labelPointXYZ, resolution);
 
+        std::cout << "Size of vector: " << labelPointXYZ.size() << std::endl;
+
+        vector<int> labelflag(20);
+        for(int i = 0; i< 20; i++){
+            labelflag[i] = 1;
+            if(labelPointXYZ[i].size() == 0)
+                labelflag[i] = 0;
+            std::cout << "Size of " << i << ": " << labelPointXYZ[i].size() << std::endl;
+        }
+        for(int i = 0; i < labelflag.size(); ++i){
+            std::cout << "Label flag: " << labelflag[i] << std::endl;
+        }
 
         ///////////////////////////////////////////////////////////
         //**************    Hand Model   ************************//
@@ -204,40 +237,125 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
 
         //read in leap motion oberservation
         Leap_hand.set_joints_positions(hand1_kp);
-        Hand_model.set_joints_positions(hand1_kp);
-        Hand_model.get_parameters();
-        Hand_model.get_joints_positions();
+//        Hand_model.set_joints_positions(hand1_kp);
+//        Hand_model.get_parameters();
+//        Hand_model.get_joints_positions();
 
         Hand_model.set_parameters();
         Hand_model.get_joints_positions();
         //        //Hand_model.get_parameters();
         //Palm ICP
-        for(int iteration_Number = 0; iteration_Number < 5; iteration_Number++){
-            Hand_model.CP_palm_fitting1(Hand_DepthMat,LabelMat, resolution);
-            Hand_model.get_joints_positions();
+        bool palm_fit;
+        if(labelflag[1]+labelflag[2]+labelflag[3]+labelflag[4]+labelflag[5] == 5){
+            for(int iteration_Number = 0; iteration_Number < 8; iteration_Number++){
+                Hand_model.CP_palm_fitting3(Hand_DepthMat,LabelMat, resolution, labelflag, palm_fit);
+                Hand_model.get_joints_positions();
+            }
+        }
+        else{
+            Hand_model.joints_position[1] = last_joints_position[1];
+            Hand_model.joints_position[6] = last_joints_position[6];
+            Hand_model.joints_position[7] = last_joints_position[7];
+            Hand_model.joints_position[11] = last_joints_position[11];
+            Hand_model.joints_position[12] = last_joints_position[12];
+            Hand_model.joints_position[16] = last_joints_position[16];
+            Hand_model.joints_position[17] = last_joints_position[17];
+            Hand_model.joints_position[21] = last_joints_position[21];
+            Hand_model.joints_position[22] = last_joints_position[22];
         }
 
-        for(int ite = 0; ite < 2; ite++){
-            //Proximal fitting:
-            for(int i = 0; i < 2; i++){
-                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 0);
-            }
-            //Intermediate fitting:
-            for(int i = 0; i < 2; i++){
-                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 1);
-                Hand_model.constrain_based_smooth( 2 );
-            }
-            //distal fitting:
-            for(int i = 0; i < 2; i++){
-                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 2);
+        //fitting1: average vector direction
+
+
+        //     //////////////////   Finger fitting 2 ///////////////////////////
+        //                      //fitting2: ICP
+        //        for(int ite = 0; ite < 2; ite++){
+        //            //Proximal fitting:
+        //            for(int i = 0; i < 2; i++){
+        //                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 0);
+        //            }
+        //            //Intermediate fitting:
+        //            for(int i = 0; i < 2; i++){
+        //                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 1);
+        //                Hand_model.constrain_based_smooth( 2 );
+        //            }
+        //            //distal fitting:
+        //            for(int i = 0; i < 2; i++){
+        //                Hand_model.finger_fitting2(Hand_DepthMat,LabelMat, resolution, 2);
+        //                Hand_model.constrain_based_smooth( 3 );
+        //            }
+
+        //            //constrain based smooth
+
+        //        }
+        //                Hand_model.get_parameters();
+        //                Hand_model.get_joints_positions();
+        //      //////////////    End of finger fitting 2   /////////////////////
+
+
+        //        //        //////////////////   Finger fitting 3 ///////////////////////////
+        //        //                        fitting3: Ransac line fitting
+        //                Hand_model.finger_fitting3(labelPointXYZ, 0);
+        //                Hand_model.finger_fitting3(labelPointXYZ, 1);
+        //                Hand_model.finger_fitting3(labelPointXYZ, 2);
+        //                Hand_model.constrain_based_smooth( 3 );
+
+        //        //        //////////////    End of finger fitting 3   /////////////////////
+
+//                //////////////////   Finger fitting 4 ///////////////////////////
+//                        //    fitting4: Searching for intersection
+//                Hand_model.finger_fitting4(Hand_DepthMat,LabelMat, resolution, 0);
+//                //Hand_model.constrain_based_smooth( 2 );
+//                Hand_model.finger_fitting3(labelPointXYZ, 2);
+//                //Hand_model.constrain_based_smooth( 3 );
+
+//        ////////////    End of finger fitting 4   /////////////////////
+
+//        ////////////////   Finger fitting 5 ///////////////////////////
+//            //fitting5: Intersection area ransac
+//        Hand_model.finger_fitting5(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ);
+//        Hand_model.constrain_based_smooth( 3 );
+
+//        ////////////    End of finger fitting 5   /////////////////////
+
+                ////////////////   Finger fitting 6 ///////////////////////////
+                    //fitting5: Intersection area ransac
+        if(labelflag[5]+labelflag[6]+labelflag[7] == 3)
+                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 1);
+        else{
+            ;
+        }
+        if(labelflag[8]+labelflag[9]+labelflag[10] == 3)
+                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 2);
+        else{
+            ;
+        }
+
+
+        if(labelflag[11]+labelflag[12]+labelflag[13] == 3)
+                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 3);
+        else{
+            ;
+        }
+
+
+        if(labelflag[14]+labelflag[15]+labelflag[16] == 3)
+                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 4);
+        else{
+            ;
+        }
+
+
+        if(labelflag[17]+labelflag[18]+labelflag[19] == 3)
+                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 5);
+        else{
+            ;
+        }
+
+
                 Hand_model.constrain_based_smooth( 3 );
-            }
 
-            //constrain based smooth
-
-        }
-        //        Hand_model.get_parameters();
-        //        Hand_model.get_joints_positions();
+                ////////////    End of finger fitting 6   /////////////////////
 
         //        //
         //        //Hand_model.finger_fitting2_proximal(Hand_DepthMat,LabelMat, resolution);
@@ -275,30 +393,44 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
             SegmentMat.at<unsigned char>(int(Hand_model.joints_position[i].y*1000)/resolution + imageSize/2,
                                          3*(int(Hand_model.joints_position[i].x*1000)/resolution + imageSize/2)+0) = 0;
             leap_articulation.push_back(Leap_hand.joints_position[i]);
+            last_joints_position[i] = Hand_model.joints_position[i];
         }
 
 
 
+        //////////// prepare for next frame  //////////////////////
 
+        my_hand_kp[0] = hand1_kp.points[0];
+        for(int i = 0 ; i < 5; i++){
+            //fingertips:
+            my_hand_kp[6*i+1] = Hand_model.joints_position[5+i*5];
+            //joints:
+            for(int j = 0; j< 5; j++){
+                my_hand_kp[6*i+j+2] = Hand_model.joints_position[1+j+i*5];
+            }
+        }
+
+
+        //flag_leap = false;
 
 
 
 
         ///////////////////////////////////////////////////////////
 
-
+        ROS_INFO("Prepare Hand Cloud");
         sensor_msgs::PointCloud2 cloud_msg;
         toROSMsg(handcloud,cloud_msg);
         cloud_msg.header.frame_id=hand_kp_pter->header.frame_id;
         cloud_msg.header.stamp = hand_kp_pter->header.stamp;
         handPublisher_.publish(cloud_msg);
-
+        ROS_INFO("Prepare Articulation");
         sensor_msgs::PointCloud2 cloud_msg_articulation;
         toROSMsg(articulation,cloud_msg_articulation);
         cloud_msg_articulation.header.frame_id=hand_kp_pter->header.frame_id;
         cloud_msg_articulation.header.stamp = hand_kp_pter->header.stamp;
         articulatePublisher_.publish(cloud_msg_articulation);
-
+        ROS_INFO("Prepare Depth Image");
         cv_bridge::CvImage depthImage_msg;
         depthImage_msg.encoding = sensor_msgs::image_encodings::MONO8;
         depthImage_msg.image    = Hand_DepthMat;
@@ -306,7 +438,7 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         depthImage_msg.header.frame_id = hand_kp_pter->header.frame_id;;
         depthImage_msg.header.stamp =  hand_kp_pter->header.stamp;
         depthpublisher_.publish(depthImage_msg.toImageMsg());
-
+        ROS_INFO("Prepare Segmentation Image");
         cv_bridge::CvImage segmentImage_msg;
         segmentImage_msg.encoding = sensor_msgs::image_encodings::TYPE_8UC3;
         segmentImage_msg.image    = SegmentMat;
@@ -314,6 +446,8 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
         segmentImage_msg.header.frame_id = hand_kp_pter->header.frame_id;;
         segmentImage_msg.header.stamp =  hand_kp_pter->header.stamp;
         segmentpublisher_.publish(segmentImage_msg.toImageMsg());
+
+        ROS_INFO("Prepare Hand Detection Result");
 
         visualization_msgs::Marker bone;
         bone.header.frame_id = hand_kp_pter->header.frame_id;

@@ -539,10 +539,10 @@ public:
                                  + (Hand_joints.points[next].z - Hand_depth.at<unsigned char>(row, col))*(Hand_joints.points[next].z - Hand_depth.at<unsigned char>(row, col)));
                         //if point projectiong is out of link; else on link
                         if( a*a + min(b,c)*min(b,c)< max(b,c)*max(b,c)){
-                                m_data[(col + row * m_width) * m_num_labels + 1 + f] = min(b,c);
+                            m_data[(col + row * m_width) * m_num_labels + 1 + f] = min(b,c);
                         }
                         else{
-                                m_data[(col + row * m_width) * m_num_labels + 1 + f] = 0.5*sqrt((a+b+c)*(a+b-c)*(b+c-a)*(a-b+c))/a;
+                            m_data[(col + row * m_width) * m_num_labels + 1 + f] = 0.5*sqrt((a+b+c)*(a+b-c)*(b+c-a)*(a-b+c))/a;
                         }
                     }
 
@@ -664,6 +664,29 @@ public:
     }
 
     ////////////// end of Multi-label graph cut Segmentation ////////////
+
+    /////////////////////////////////////////////////////////////////////
+    //*******     rearrange data according to label    ****************//
+    void Image2Label(Mat Hand_DepthMat, Mat LabelMat, vector< vector<pcl::PointXYZ> > & labelPointXYZ, int resolution){
+        int imageSize = 300/resolution;
+
+        for(int row = 0; row < LabelMat.rows; row++){
+            for(int col = 0; col < LabelMat.cols; col ++){
+                int L = LabelMat.at<unsigned char>(row, col);
+                if(L != 0){
+                    PointXYZ p;
+                    p.x = (col-imageSize/2.0)*resolution/1000.0;
+                    p.y = (row-imageSize/2.0)*resolution/1000.0;
+                    p.z = (Hand_DepthMat.at<unsigned char>(row, col)-imageSize/2.0)*resolution/1000.0;
+
+                    labelPointXYZ[L].push_back(p);
+                }
+
+            }
+        }
+
+    }
+    ////////////// end of rearrange data according to label  ////////////
 
 
 };

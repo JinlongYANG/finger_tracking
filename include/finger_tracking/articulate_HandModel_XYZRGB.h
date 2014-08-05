@@ -108,6 +108,7 @@
 #include <pcl/point_types.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/registration/icp.h>
+#include <omp.h>
 
 using namespace cv;
 
@@ -134,10 +135,25 @@ public:
     void set_joints_positions(pcl::PointCloud<pcl::PointXYZRGB> hand_kp);
     void get_joints_positions();
 
-    void CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMat, int resolution);
+    //use 8 points
+    void CP_palm_fitting1(Mat Hand_DepthMat,Mat LabelMat, int resolution, vector<int> labelflag);
+    //use 9 points
+    void CP_palm_fitting2(Mat Hand_DepthMat,Mat LabelMat, int resolution, vector<int> labelflag);
+    //intersection center
+    void CP_palm_fitting3(Mat Hand_DepthMat,Mat LabelMat, int resolution, vector<int> labelflag, bool &ok_flag);
+    //fitting1: average vector direction
     void finger_fitting(Mat Hand_DepthMat,Mat LabelMat, int resolution, int bone);
-
+    //fitting2: ICP
     void finger_fitting2(Mat Hand_DepthMat, Mat LabelMat, int resolution, int bone);
+    //fitting3: Ransac line fitting
+    void finger_fitting3(vector< vector<pcl::PointXYZ> > labelPointXYZ, int bone);
+    //fitting4: Searching for intersection
+    void finger_fitting4(Mat Hand_DepthMat, Mat LabelMat, int resolution, int bone);
+    //fitting5: Intersection area ransac
+    void finger_fitting5(Mat Hand_DepthMat, Mat LabelMat, int resolution, int iteration_number, vector< vector<pcl::PointXYZ> > labelPointXYZ);
+    //fitting6: fitting 5 split to each finger
+    void finger_fitting6(Mat Hand_DepthMat, Mat LabelMat, int resolution, int iteration_number, vector< vector<pcl::PointXYZ> > labelPointXYZ, int finger2fit);
+
     void constrain_based_smooth(int number_of_joints);
 
     void trial();
