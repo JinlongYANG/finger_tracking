@@ -2463,7 +2463,7 @@ void articulate_HandModel_XYZRGB::finger_fitting5(Mat Hand_DepthMat, Mat LabelMa
 
 }
 
-void articulate_HandModel_XYZRGB::finger_fitting6(Mat Hand_DepthMat, Mat LabelMat, int resolution, int iteration_number, vector< vector<pcl::PointXYZ> > labelPointXYZ, int finger2fit){
+void articulate_HandModel_XYZRGB::finger_fitting6(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, int const finger2fit){
     vector< vector <Point3d> > Intersection(10, vector<Point3d>() );
     vector< vector <Point3d> > Distal_edge(5, vector<Point3d>() );
     int imageSize = 300/resolution;
@@ -2829,6 +2829,569 @@ void articulate_HandModel_XYZRGB::finger_fitting6(Mat Hand_DepthMat, Mat LabelMa
 
 
 
+}
+
+void articulate_HandModel_XYZRGB::finger_fitting7(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, vector<int> & failed){
+    vector< vector <Point3d> > Intersection(10, vector<Point3d>() );
+    vector< vector <Point3d> > Distal_edge(5, vector<Point3d>() );
+    int imageSize = 300/resolution;
+
+    std::cout << "iteration_number: " << iteration_number << std::endl;
+    srand((unsigned)time(NULL));
+
+    //1. Looking for intersection region
+    for(int row = 0; row < LabelMat.rows; row++){
+        for(int col = 0; col < LabelMat.cols; col++){
+            //intersection area:
+            if( LabelMat.at<unsigned char>(row, col) != 0 && LabelMat.at<unsigned char>(row, col) != 3 && LabelMat.at<unsigned char>(row, col)%3 == 0){
+                int L = LabelMat.at<unsigned char>(row, col);
+                if(LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row +1, col) == 1 ||  LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row-1, col) == 1||
+                        LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row, col + 1) == 1 || LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row, col - 1) == 1){
+                    Point3d p3d;
+                    p3d.x = (col-imageSize/2.0)*resolution/1000.0;
+                    p3d.y = (row-imageSize/2.0)*resolution/1000.0;
+                    p3d.z = (Hand_DepthMat.at<unsigned char>(row, col)-imageSize/2.0)*resolution/1000.0;
+                    Intersection[(L/3-1)*2-2].push_back(p3d);
+                }
+                else if (LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row +1, col) == -1 ||  LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row-1, col) == -1||
+                         LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row, col + 1) == -1 || LabelMat.at<unsigned char>(row, col) - LabelMat.at<unsigned char>(row, col - 1) == -1){
+                    Point3d p3d;
+                    p3d.x = (col-imageSize/2.0)*resolution/1000.0;
+                    p3d.y = (row-imageSize/2.0)*resolution/1000.0;
+                    p3d.z = (Hand_DepthMat.at<unsigned char>(row, col)-imageSize/2.0)*resolution/1000.0;
+                    Intersection[(L/3-1)*2-1].push_back(p3d);
+
+                }
+
+            }
+            //distal edge:
+            else if ( LabelMat.at<unsigned char>(row, col) != 1 && LabelMat.at<unsigned char>(row, col) != 4 && LabelMat.at<unsigned char>(row, col)%3 == 1){
+                int L = LabelMat.at<unsigned char>(row, col);
+                if(LabelMat.at<unsigned char>(row +1, col) == 0 || LabelMat.at<unsigned char>(row -1, col) == 0
+                        || LabelMat.at<unsigned char>(row, col + 1) == 0 || LabelMat.at<unsigned char>(row, col - 1) == 0){
+                    Point3d p3d;
+                    p3d.x = (col-imageSize/2.0)*resolution/1000.0;
+                    p3d.y = (row-imageSize/2.0)*resolution/1000.0;
+                    p3d.z = (Hand_DepthMat.at<unsigned char>(row, col)-imageSize/2.0)*resolution/1000.0;
+                    Distal_edge[(L-1)/3-2].push_back(p3d);
+                }
+            }
+        }
+
+    }
+    //    for(int i = 0; i < 10; i++)
+    //        std::cout<< "Size of " << i << ": " << Intersection[i].size() << std::endl;
+    //1.2 Ransac to find the intersection center:
+    Point3d center[10];
+    vector<int> invalid_index;
+    for(int i = 0; i < 10; i++){
+        if(Intersection[i].size()!=0)
+            Ransac(Intersection[i], center[i], 10, 0.007);
+        else{
+            center[i].x = -999;
+            invalid_index.push_back(i);
+        }
+        //std::cout<< "Center " << i << ": " << center[i] << std::endl;
+    }
+
+    //2. Fitting 3 lines together for thumb
+    float T_ratio = 0.0, T_sum = 1000;
+    if(center[0].x != -999 && center[1].x != -999 && Distal_edge[0].size() != 0){
+        for(int iteration = 0; iteration < iteration_number; iteration++){
+            //2.1 randomly select two points in intersection areas:
+            Point3d temp_joints_position[5][3];
+
+            temp_joints_position[0][0].x = center[0].x+rand()%5/1000;
+            temp_joints_position[0][0].y = center[0].y+rand()%5/1000;
+            temp_joints_position[0][0].z = center[0].z+rand()%5/1000;
+
+            temp_joints_position[0][1].x = center[1].x+rand()%5/1000;
+            temp_joints_position[0][1].y = center[1].y+rand()%5/1000;
+            temp_joints_position[0][1].z = center[1].z+rand()%5/1000;
+
+            //2.2 randomly select one point in end of distal areas:
+            float distance = 0.0;
+            int count = 0;
+            while(count < 10){
+                int index = rand()% int( Distal_edge[0].size() );
+                count ++;
+                float temp_distance = Distance_2Point3d(Distal_edge[0][index], temp_joints_position[0][1]);
+                if(temp_distance > distance){
+                    distance = temp_distance;
+                    temp_joints_position[0][2] = Distal_edge[0][index];
+                }
+            }
+
+            //2.3calculate the distance as score:
+            float sum = 0;
+            int inlier_count = 0;
+            for(int bone_index = 0; bone_index < 3; ++bone_index){
+                //first thumb bone:
+                if( bone_index  == 0){
+
+                    Mat v = Mat::zeros(3,1,CV_32FC1);
+                    Mat w = Mat::zeros(3,1,CV_32FC1);
+                    v.at<float>(0,0) = temp_joints_position[0][0].x - joints_position[1].x;
+                    v.at<float>(1,0) = temp_joints_position[0][0].y - joints_position[1].y;
+                    v.at<float>(2,0) = temp_joints_position[0][0].z - joints_position[1].z;
+
+                    //calculate distance of all points in label 5 to the line
+                    for(int i = 0; i < labelPointXYZ[5].size(); i++){
+                        w.at<float>(0,0) = labelPointXYZ[5][i].x - joints_position[1].x;
+                        w.at<float>(1,0) = labelPointXYZ[5][i].y - joints_position[1].y;
+                        w.at<float>(2,0) = labelPointXYZ[5][i].z - joints_position[1].z;
+
+                        Mat c1 = w.t()*v;
+                        Mat c2 = v.t()*v;
+                        float indivi_distance;
+                        int outlier = 0;
+                        if( c1.at<float>(0,0) <= 0){
+                            //indivi_distance = Distance_XYZXYZRGB(labelPointXYZ[5][i], joints_position[1]);
+                            outlier = 1;
+                        }
+                        else if (c2.at<float>(0,0) <= c1.at<float>(0,0)){
+                            //indivi_distance = Distance_XYZPoint3d(labelPointXYZ[5][i],temp_joints_position[0][0]);
+                            outlier = 1;
+                        }
+                        else{
+                            float b = c1.at<float>(0,0)/c2.at<float>(0,0);
+                            pcl::PointXYZ p_xyz;
+                            p_xyz.x = joints_position[1].x + b*v.at<float>(0,0);
+                            p_xyz.y = joints_position[1].y + b*v.at<float>(1,0);
+                            p_xyz.z = joints_position[1].z + b*v.at<float>(2,0);
+                            indivi_distance = Distance_2XYZ(labelPointXYZ[5][i], p_xyz);
+                            sum += indivi_distance;
+                        }
+
+
+                        if(indivi_distance < 0.005)
+                            inlier_count = inlier_count + 1 - outlier;
+                    }
+
+                }
+                //other thumb bone:
+                else{
+                    Mat v = Mat::zeros(3,1,CV_32FC1);
+                    Mat w = Mat::zeros(3,1,CV_32FC1);
+                    v.at<float>(0,0) = temp_joints_position[0][bone_index].x - temp_joints_position[0][bone_index-1].x;
+                    v.at<float>(1,0) = temp_joints_position[0][bone_index].y - temp_joints_position[0][bone_index-1].y;
+                    v.at<float>(2,0) = temp_joints_position[0][bone_index].z - temp_joints_position[0][bone_index-1].z;
+
+                    //calculate distance of all points in label 5 to the line
+                    for(int i = 0; i < labelPointXYZ[5+bone_index].size(); i++){
+                        w.at<float>(0,0) = labelPointXYZ[5+bone_index][i].x - temp_joints_position[0][bone_index-1].x;
+                        w.at<float>(1,0) = labelPointXYZ[5+bone_index][i].y - temp_joints_position[0][bone_index-1].y;
+                        w.at<float>(2,0) = labelPointXYZ[5+bone_index][i].z - temp_joints_position[0][bone_index-1].z;
+
+                        Mat c1 = w.t()*v;
+                        Mat c2 = v.t()*v;
+                        float indivi_distance;
+                        int outlier = 0;
+                        if( c1.at<float>(0,0) <= 0){
+                            //indivi_distance = Distance_XYZPoint3d(labelPointXYZ[5+bone_index][i], temp_joints_position[0][bone_index-1]);
+                            outlier = 1;
+                        }
+                        else if (c2.at<float>(0,0) <= c1.at<float>(0,0)){
+                            //indivi_distance = Distance_XYZPoint3d(labelPointXYZ[5+bone_index][i],temp_joints_position[0][bone_index]);
+                            outlier = 1;
+                        }
+                        else{
+                            float b = c1.at<float>(0,0)/c2.at<float>(0,0);
+                            pcl::PointXYZ p_xyz;
+                            p_xyz.x = temp_joints_position[0][bone_index-1].x + b*v.at<float>(0,0);
+                            p_xyz.y = temp_joints_position[0][bone_index-1].y + b*v.at<float>(1,0);
+                            p_xyz.z = temp_joints_position[0][bone_index-1].z + b*v.at<float>(2,0);
+                            indivi_distance = Distance_2XYZ(labelPointXYZ[5+bone_index][i], p_xyz);
+                            sum += indivi_distance;
+
+                        }
+
+
+                        if(indivi_distance < 0.005)
+                            inlier_count = inlier_count + 1 - outlier;
+                    }
+                }
+            }
+            float inlier_ratio = inlier_count*1.0/(labelPointXYZ[5].size() + labelPointXYZ[6].size() + labelPointXYZ[7].size());
+            //std::cout << "inlier ratio: " << inlier_ratio << "    Average dis: " << sum/inlier_count << std::endl;
+            if(inlier_ratio > T_ratio && sum/inlier_count < T_sum){
+                joints_position[2].x = temp_joints_position[0][0].x;
+                joints_position[2].y = temp_joints_position[0][0].y;
+                joints_position[2].z = temp_joints_position[0][0].z;
+
+                joints_position[3].x = temp_joints_position[0][1].x;
+                joints_position[3].y = temp_joints_position[0][1].y;
+                joints_position[3].z = temp_joints_position[0][1].z;
+
+                joints_position[4].x = temp_joints_position[0][2].x;
+                joints_position[4].y = temp_joints_position[0][2].y;
+                joints_position[4].z = temp_joints_position[0][2].z;
+
+                joints_position[5] = joints_position[4];
+                T_ratio = inlier_ratio;
+                T_sum = sum/inlier_count;
+            }
+
+        }
+    }
+    else{
+        failed.push_back(1);
+    }
+
+
+    //2. Fitting 3 lines together for other fingers:
+    for(int finger_index = 1; finger_index < 5; ++ finger_index){
+        if(center[2*finger_index].x != -999 && center[2*finger_index+1].x != -999 && Distal_edge[finger_index].size() != 0){
+            T_ratio = 0.0;
+            T_sum = 1000;
+            for(int iteration = 0; iteration < iteration_number; iteration++){
+                //2.1 randomly select two points in intersection areas:
+                Point3d temp_joints_position[5][3];
+                temp_joints_position[finger_index][0].x = center[2*finger_index].x+rand()%5/1000;
+                temp_joints_position[finger_index][0].y = center[2*finger_index].y+rand()%5/1000;
+                temp_joints_position[finger_index][0].z = center[2*finger_index].z+rand()%5/1000;
+
+                temp_joints_position[finger_index][1].x = center[1+2*finger_index].x+rand()%5/1000;
+                temp_joints_position[finger_index][1].y = center[1+2*finger_index].y+rand()%5/1000;
+                temp_joints_position[finger_index][1].z = center[1+2*finger_index].z+rand()%5/1000;
+
+                //2.2 randomly select one point in end of distal areas:
+                float distance = 0.0;
+                int count = 0;
+                while(count < 7){
+                    int index = rand()% int( Distal_edge[finger_index].size() );
+                    count ++;
+                    float temp_distance = Distance_2Point3d(Distal_edge[finger_index][index], temp_joints_position[finger_index][1]);
+                    if(temp_distance > distance){
+                        distance = temp_distance;
+                        temp_joints_position[finger_index][2] = Distal_edge[finger_index][index];
+                    }
+                }
+
+                //2.3calculate the distance as score:
+                float sum = 0;
+                int inlier_count = 0;
+                for(int bone_index = 0; bone_index < 3; ++bone_index){
+                    //first finger bone:
+                    if( bone_index  == 0){
+
+                        Mat v = Mat::zeros(3,1,CV_32FC1);
+                        Mat w = Mat::zeros(3,1,CV_32FC1);
+                        v.at<float>(0,0) = temp_joints_position[finger_index][0].x - joints_position[5*finger_index+2].x;
+                        v.at<float>(1,0) = temp_joints_position[finger_index][0].y - joints_position[5*finger_index+2].y;
+                        v.at<float>(2,0) = temp_joints_position[finger_index][0].z - joints_position[5*finger_index+2].z;
+
+                        //calculate distance of all points in label 5 to the line
+                        for(int i = 0; i < labelPointXYZ[3*finger_index+5].size(); i++){
+                            w.at<float>(0,0) = labelPointXYZ[3*finger_index+5][i].x - joints_position[5*finger_index+2].x;
+                            w.at<float>(1,0) = labelPointXYZ[3*finger_index+5][i].y - joints_position[5*finger_index+2].y;
+                            w.at<float>(2,0) = labelPointXYZ[3*finger_index+5][i].z - joints_position[5*finger_index+2].z;
+
+                            Mat c1 = w.t()*v;
+                            Mat c2 = v.t()*v;
+                            float indivi_distance;
+                            int outlier = 0;
+                            if( c1.at<float>(0,0) <= 0){
+                                //indivi_distance = Distance_XYZXYZRGB(labelPointXYZ[3*finger_index+5][i], joints_position[5*finger_index+2]);
+                                outlier = 1;
+                            }
+                            else if (c2.at<float>(0,0) <= c1.at<float>(0,0)){
+                                //indivi_distance = Distance_XYZPoint3d(labelPointXYZ[3*finger_index+5][i],temp_joints_position[finger_index][0]);
+                                outlier = 1;
+                            }
+                            else{
+                                float b = c1.at<float>(0,0)/c2.at<float>(0,0);
+                                pcl::PointXYZ p_xyz;
+                                p_xyz.x = joints_position[5*finger_index+2].x + b*v.at<float>(0,0);
+                                p_xyz.y = joints_position[5*finger_index+2].y + b*v.at<float>(1,0);
+                                p_xyz.z = joints_position[5*finger_index+2].z + b*v.at<float>(2,0);
+                                indivi_distance = Distance_2XYZ(labelPointXYZ[3*finger_index+5][i], p_xyz);
+                                sum += indivi_distance;
+                            }
+
+                            if(indivi_distance < 0.004)
+                                inlier_count = inlier_count + 1 - outlier;
+                        }
+
+                    }
+                    //other finger bone:
+                    else{
+                        Mat v = Mat::zeros(3,1,CV_32FC1);
+                        Mat w = Mat::zeros(3,1,CV_32FC1);
+                        v.at<float>(0,0) = temp_joints_position[finger_index][bone_index].x - temp_joints_position[finger_index][bone_index-1].x;
+                        v.at<float>(1,0) = temp_joints_position[finger_index][bone_index].y - temp_joints_position[finger_index][bone_index-1].y;
+                        v.at<float>(2,0) = temp_joints_position[finger_index][bone_index].z - temp_joints_position[finger_index][bone_index-1].z;
+
+                        //calculate distance of all points in label 5 to the line
+                        for(int i = 0; i < labelPointXYZ[3*finger_index+5+bone_index].size(); i++){
+                            w.at<float>(0,0) = labelPointXYZ[3*finger_index+5+bone_index][i].x - temp_joints_position[finger_index][bone_index-1].x;
+                            w.at<float>(1,0) = labelPointXYZ[3*finger_index+5+bone_index][i].y - temp_joints_position[finger_index][bone_index-1].y;
+                            w.at<float>(2,0) = labelPointXYZ[3*finger_index+5+bone_index][i].z - temp_joints_position[finger_index][bone_index-1].z;
+
+                            Mat c1 = w.t()*v;
+                            Mat c2 = v.t()*v;
+                            float indivi_distance;
+                            int outlier = 0;
+                            if( c1.at<float>(0,0) <= 0){
+                                //indivi_distance = Distance_XYZPoint3d(labelPointXYZ[3*finger_index+5+bone_index][i], temp_joints_position[finger_index][bone_index-1]);
+                                outlier = 1;
+                            }
+                            else if (c2.at<float>(0,0) <= c1.at<float>(0,0)){
+                                //indivi_distance = Distance_XYZPoint3d(labelPointXYZ[3*finger_index+5+bone_index][i],temp_joints_position[finger_index][bone_index]);
+                                outlier = 1;
+                            }
+                            else{
+                                float b = c1.at<float>(0,0)/c2.at<float>(0,0);
+                                pcl::PointXYZ p_xyz;
+                                p_xyz.x = temp_joints_position[finger_index][bone_index-1].x + b*v.at<float>(0,0);
+                                p_xyz.y = temp_joints_position[finger_index][bone_index-1].y + b*v.at<float>(1,0);
+                                p_xyz.z = temp_joints_position[finger_index][bone_index-1].z + b*v.at<float>(2,0);
+                                indivi_distance = Distance_2XYZ(labelPointXYZ[3*finger_index+5+bone_index][i], p_xyz);
+                                sum += indivi_distance;
+                            }
+
+                            if(indivi_distance < 0.003)
+                                inlier_count = inlier_count + 1 - outlier;
+                        }
+                    }
+                }
+                float inlier_ratio = inlier_count*1.0/(labelPointXYZ[3*finger_index+5].size() + labelPointXYZ[3*finger_index+6].size() + labelPointXYZ[3*finger_index+7].size());
+                //std::cout << "inlier ratio: " << inlier_ratio << "    Average dis: " << sum/inlier_count << std::endl;
+                if(inlier_ratio > T_ratio && sum/inlier_count < T_sum){
+                    joints_position[5*finger_index+3].x = temp_joints_position[finger_index][0].x;
+                    joints_position[5*finger_index+3].y = temp_joints_position[finger_index][0].y;
+                    joints_position[5*finger_index+3].z = temp_joints_position[finger_index][0].z;
+
+                    joints_position[5*finger_index+4].x = temp_joints_position[finger_index][1].x;
+                    joints_position[5*finger_index+4].y = temp_joints_position[finger_index][1].y;
+                    joints_position[5*finger_index+4].z = temp_joints_position[finger_index][1].z;
+
+                    joints_position[5*finger_index+5].x = temp_joints_position[finger_index][2].x;
+                    joints_position[5*finger_index+5].y = temp_joints_position[finger_index][2].y;
+                    joints_position[5*finger_index+5].z = temp_joints_position[finger_index][2].z;
+
+                    T_ratio = inlier_ratio;
+                    T_sum = sum/inlier_count;
+                }
+
+            }
+        }
+        else{
+            failed.push_back(finger_index);
+        }
+    }
+}
+
+void articulate_HandModel_XYZRGB::bp_finger_fitting(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, vector<int> & failed){
+
+}
+
+void articulate_HandModel_XYZRGB::bp_kinematic_constrain(const vector<int> failed, vector<Point3d> &newpoint){
+    Point3d w[5];
+    bool complete_fingers[5] = {true, true, true, true, true};
+    for(int i = 0; i< failed.size(); i++){
+        complete_fingers[failed[i]] = false;
+    }
+    //thumb:
+    Mat translation = Mat::zeros(3,1,CV_32FC1);
+    translation.at<float>(0,0) = parameters[0];
+    translation.at<float>(1,0) = parameters[1];
+    translation.at<float>(2,0) = parameters[2];
+
+    if(complete_fingers[0] == true){
+        Mat joints_for_calc = Mat::zeros(3,1,CV_32FC1);
+        virtual_joints[0].copyTo(joints_for_calc);
+
+        Mat R_p_r_y = R_z(parameters[5])*R_y(parameters[4])*R_x(parameters[3]);
+
+
+        joints_for_calc = R_p_r_y * joints_for_calc+translation;
+
+        Point3d temp_w[3];
+        for(int i = 0; i<3; i++){
+            float dx1 = joints_for_calc.at<float>(0,0) - joints_position[1].x;
+            float dy1 = joints_for_calc.at<float>(1,0) - joints_position[1].y;
+            float dz1 = joints_for_calc.at<float>(2,0) - joints_position[1].z;
+
+            float dx2 = joints_position[2+i].x - joints_position[1].x;
+            float dy2 = joints_position[2+i].y - joints_position[1].y;
+            float dz2 = joints_position[2+i].z - joints_position[1].z;
+
+            temp_w[i].x = 1;
+            if(dy1*dz2-dy2*dz1 == 0){
+                temp_w[i].y = 100000;
+                temp_w[i].z = 100000;
+            }
+            else{
+                temp_w[i].y = (dx2*dz1-dx1*dz2)/(dy1*dz2-dy2*dz1);
+                temp_w[i].z = (dx2*dy1-dx1*dy2)/(dy2*dz1-dy1*dz2);
+            }
+
+            float length = sqrt(temp_w[i].x * temp_w[i].x + temp_w[i].y * temp_w[i].y + temp_w[i].z * temp_w[i].z);
+            if(length!= 0){
+                temp_w[i].x = temp_w[i].x/length;
+                temp_w[i].y = temp_w[i].y/length;
+                temp_w[i].z = temp_w[i].z/length;
+            }
+        }
+
+
+        w[0].x = (temp_w[0].x*Distance_2XYZRGB( joints_position[2],  joints_position[1]) +
+                  temp_w[1].x*Distance_2XYZRGB( joints_position[3],  joints_position[1])+
+                  temp_w[2].x*Distance_2XYZRGB( joints_position[4],  joints_position[1]))/
+                (Distance_2XYZRGB( joints_position[2],  joints_position[1])+Distance_2XYZRGB( joints_position[3],  joints_position[1])+Distance_2XYZRGB( joints_position[4],  joints_position[1]));
+        w[0].y = (temp_w[0].y*Distance_2XYZRGB( joints_position[2],  joints_position[1]) +
+                  temp_w[1].y*Distance_2XYZRGB( joints_position[3],  joints_position[1])+
+                  temp_w[2].y*Distance_2XYZRGB( joints_position[4],  joints_position[1]))/
+                (Distance_2XYZRGB( joints_position[1],  joints_position[1])+Distance_2XYZRGB( joints_position[3],  joints_position[1])+Distance_2XYZRGB( joints_position[4],  joints_position[1]));
+        w[0].z = (temp_w[0].z*Distance_2XYZRGB( joints_position[2],  joints_position[1]) +
+                  temp_w[1].z*Distance_2XYZRGB( joints_position[3],  joints_position[1])+
+                  temp_w[2].z*Distance_2XYZRGB( joints_position[4],  joints_position[1]))/
+                (Distance_2XYZRGB( joints_position[2],  joints_position[1])+Distance_2XYZRGB( joints_position[3],  joints_position[1])+Distance_2XYZRGB( joints_position[4],  joints_position[1]));
+
+
+        //        for(int b = 0; b<3; b++){
+        //            Point3d v;
+        //            v.x = joints_position[2+b].x - joints_position[1].x;
+        //            v.y = joints_position[2+b].y - joints_position[1].y;
+        //            v.z = joints_position[2+b].z - joints_position[1].z;
+        //            float dist = v.x*w[0].x + v.y*w[0].y + v.z*w[0].z;
+        //            joints_position[2+b].x = joints_position[2+b].x - dist*w[0].x;
+        //            joints_position[2+b].y = joints_position[2+b].y - dist*w[0].y;
+        //            joints_position[2+b].z = joints_position[2+b].z - dist*w[0].z;
+
+        //            float scale = bone_length[0][b]/1000.0/Distance_2XYZRGB(joints_position[2+b], joints_position[1+b]);
+        //            joints_position[2+b].x = (joints_position[2+b].x - joints_position[1+b].x)*scale + joints_position[1+b].x;
+        //            joints_position[2+b].y = (joints_position[2+b].y - joints_position[1+b].y)*scale + joints_position[1+b].y;
+        //            joints_position[2+b].z = (joints_position[2+b].z - joints_position[1+b].z)*scale + joints_position[1+b].z;
+
+
+        //        }
+        for(int b = 0; b<3; b++){
+            Point3d v;
+            v.x = joints_position[3-b].x - joints_position[4].x;
+            v.y = joints_position[3-b].y - joints_position[4].y;
+            v.z = joints_position[3-b].z - joints_position[4].z;
+            float dist = v.x*w[0].x + v.y*w[0].y + v.z*w[0].z;
+
+            joints_position[3-b].x = joints_position[3-b].x - dist*w[0].x;
+            joints_position[3-b].y = joints_position[3-b].y - dist*w[0].y;
+            joints_position[3-b].z = joints_position[3-b].z - dist*w[0].z;
+
+            float scale = bone_length[0][2-b]/1000.0/Distance_2XYZRGB(joints_position[3-b], joints_position[4-b]);
+            joints_position[3-b].x = (joints_position[3-b].x - joints_position[4-b].x)*scale + joints_position[4-b].x;
+            joints_position[3-b].y = (joints_position[3-b].y - joints_position[4-b].y)*scale + joints_position[4-b].y;
+            joints_position[3-b].z = (joints_position[3-b].z - joints_position[4-b].z)*scale + joints_position[4-b].z;
+
+        }
+
+        joints_position[5] = joints_position[4];
+    }
+
+    //other fingers:
+    for(int f = 1; f < 5; f++){
+        if(complete_fingers[f] == true){
+            Mat joints_for_calc = Mat::zeros(3,1,CV_32FC1);
+            virtual_joints[f].copyTo(joints_for_calc);
+            //calculate the point directly over palm end joint:
+            Mat R_p_r_y = R_z(parameters[5])*R_y(parameters[4])*R_x(parameters[3]);
+
+            //std::cout << "R: " << R_p_r_y << std::endl;
+
+
+            //std::cout << "translation: " << translation << std::endl;
+            joints_for_calc = R_p_r_y * joints_for_calc+translation;
+            //calculate plane:
+            Point3d temp_w[3];
+            for(int i = 0; i<3; i++){
+                float dx1 = joints_for_calc.at<float>(0,0) - joints_position[5*f+2].x;
+                float dy1 = joints_for_calc.at<float>(1,0) - joints_position[5*f+2].y;
+                float dz1 = joints_for_calc.at<float>(2,0) - joints_position[5*f+2].z;
+
+                float dx2 = joints_position[5*f+3+i].x - joints_position[5*f+2].x;
+                float dy2 = joints_position[5*f+3+i].y - joints_position[5*f+2].y;
+                float dz2 = joints_position[5*f+3+i].z - joints_position[5*f+2].z;
+
+                temp_w[i].x = 1;
+                if(dy1*dz2-dy2*dz1 == 0){
+                    temp_w[i].y = 100000;
+                    temp_w[i].z = 100000;
+                }
+                else{
+                    temp_w[i].y = (dx2*dz1-dx1*dz2)/(dy1*dz2-dy2*dz1);
+                    temp_w[i].z = (dx2*dy1-dx1*dy2)/(dy2*dz1-dy1*dz2);
+                }
+
+                float length = sqrt(temp_w[i].x * temp_w[i].x + temp_w[i].y * temp_w[i].y + temp_w[i].z * temp_w[i].z);
+                if(length!= 0){
+                    temp_w[i].x = temp_w[i].x/length;
+                    temp_w[i].y = temp_w[i].y/length;
+                    temp_w[i].z = temp_w[i].z/length;
+                }
+            }
+            //plane: a = w[f].x; b = w[f].y; c = w[f].z;
+
+            w[f].x = (temp_w[0].x*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                      temp_w[1].x*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+
+                      temp_w[2].x*Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]))/
+                    (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]));
+            w[f].y = (temp_w[0].y*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                      temp_w[1].y*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+
+                      temp_w[2].y*Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]))/
+                    (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]));
+            w[f].z = (temp_w[0].z*Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2]) +
+                      temp_w[1].z*Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+
+                      temp_w[2].z*Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]))/
+                    (Distance_2XYZRGB( joints_position[5*f+3],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+4],  joints_position[5*f+2])+Distance_2XYZRGB( joints_position[5*f+5],  joints_position[5*f+2]));
+
+            std::cout << f << ": " << w[f] << std::endl;
+
+            //            for(int b = 0; b<3; b++){
+            //                Point3d v;
+            //                v.x = joints_position[5*f+3+b].x - joints_position[5*f+2].x;
+            //                v.y = joints_position[5*f+3+b].y - joints_position[5*f+2].y;
+            //                v.z = joints_position[5*f+3+b].z - joints_position[5*f+2].z;
+            //                float dist = v.x*w[f].x + v.y*w[f].y + v.z*w[f].z;
+            //                joints_position[5*f+3+b].x = joints_position[5*f+3+b].x - dist*w[f].x;
+            //                joints_position[5*f+3+b].y = joints_position[5*f+3+b].y - dist*w[f].y;
+            //                joints_position[5*f+3+b].z = joints_position[5*f+3+b].z - dist*w[f].z;
+
+            //                float scale = bone_length[f][b+1]/1000.0/Distance_2XYZRGB(joints_position[5*f+3+b], joints_position[5*f+2+b]);
+            //                joints_position[5*f+3+b].x = (joints_position[5*f+3+b].x - joints_position[5*f+2+b].x)*scale + joints_position[5*f+2+b].x;
+            //                joints_position[5*f+3+b].y = (joints_position[5*f+3+b].y - joints_position[5*f+2+b].y)*scale + joints_position[5*f+2+b].y;
+            //                joints_position[5*f+3+b].z = (joints_position[5*f+3+b].z - joints_position[5*f+2+b].z)*scale + joints_position[5*f+2+b].z;
+
+            //                //            if(abs(Distance_2XYZRGB(joints_position[5*f+3+b], joints_position[5*f+2+b]) - bone_length[f][b+1]/1000.0)>0.001)
+            //                //                std::cout << "No!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+
+
+            //            }
+            for(int b = 0; b<3; b++){
+                Point3d v;
+                v.x = joints_position[5*f+4-b].x - joints_position[5*f+5].x;
+                v.y = joints_position[5*f+4-b].y - joints_position[5*f+5].y;
+                v.z = joints_position[5*f+4-b].z - joints_position[5*f+5].z;
+                float dist = v.x*w[f].x + v.y*w[f].y + v.z*w[f].z;
+                joints_position[5*f+4-b].x = joints_position[5*f+4-b].x - dist*w[f].x;
+                joints_position[5*f+4-b].y = joints_position[5*f+4-b].y - dist*w[f].y;
+                joints_position[5*f+4-b].z = joints_position[5*f+4-b].z - dist*w[f].z;
+
+                float scale = bone_length[f][3-b]/1000.0/Distance_2XYZRGB(joints_position[5*f+4-b], joints_position[5*f+5-b]);
+                joints_position[5*f+4-b].x = (joints_position[5*f+4-b].x - joints_position[5*f+5-b].x)*scale + joints_position[5*f+5-b].x;
+                joints_position[5*f+4-b].y = (joints_position[5*f+4-b].y - joints_position[5*f+5-b].y)*scale + joints_position[5*f+5-b].y;
+                joints_position[5*f+4-b].z = (joints_position[5*f+4-b].z - joints_position[5*f+5-b].z)*scale + joints_position[5*f+5-b].z;
+
+                //            if(abs(Distance_2XYZRGB(joints_position[5*f+3+b], joints_position[5*f+2+b]) - bone_length[f][b+1]/1000.0)>0.001)
+                //                std::cout << "No!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!" << std::endl;
+
+
+            }
+
+
+
+        }
+    }
+    ROS_INFO("back propagation");
 }
 
 void articulate_HandModel_XYZRGB::constrain_based_smooth(int number_of_joints){

@@ -152,7 +152,13 @@ public:
     //fitting5: Intersection area ransac
     void finger_fitting5(Mat Hand_DepthMat, Mat LabelMat, int resolution, int iteration_number, vector< vector<pcl::PointXYZ> > labelPointXYZ);
     //fitting6: fitting 5 split to each finger
-    void finger_fitting6(Mat Hand_DepthMat, Mat LabelMat, int resolution, int iteration_number, vector< vector<pcl::PointXYZ> > labelPointXYZ, int finger2fit);
+    void finger_fitting6(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, int const finger2fit);
+    //fitting7: fitting 5 without invisible bug
+    void finger_fitting7(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, vector<int> & failed);
+
+    void bp_finger_fitting(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, vector<int> & failed);
+
+    void bp_kinematic_constrain(const vector<int> failed, vector<Point3d> &newpoint);
 
     void constrain_based_smooth(int number_of_joints);
 
