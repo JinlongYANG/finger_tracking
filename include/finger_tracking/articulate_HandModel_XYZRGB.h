@@ -155,8 +155,10 @@ public:
     void finger_fitting6(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, int const finger2fit);
     //fitting7: fitting 5 without invisible bug
     void finger_fitting7(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, vector<int> & failed);
+    //fitting8: fitting 7 with back propagation
+    void finger_fitting8(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, vector<int> & failed, vector<Point3d> & newpoints);
 
-    void bp_finger_fitting(Mat const Hand_DepthMat, Mat const LabelMat, int const resolution, int const iteration_number, const vector< vector<pcl::PointXYZ> > labelPointXYZ, vector<int> & failed);
+    void bp_palm(const vector<int> failed, const vector<Point3d> newpoint);
 
     void bp_kinematic_constrain(const vector<int> failed, vector<Point3d> &newpoint);
 

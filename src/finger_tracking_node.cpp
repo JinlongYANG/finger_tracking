@@ -121,38 +121,23 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
                         && abs(msg_pcl.points[i].y - hand1_kp.points[25].y) < finger_length
                         && abs(msg_pcl.points[i].z - hand1_kp.points[25].z) < finger_length))
                     ){
+                uint32_t rgb = *reinterpret_cast<int*>(&msg_pcl.points[i].rgb);
+                uint8_t r = (rgb >> 16) & 0x0000ff;
+                uint8_t g = (rgb >> 8) & 0x0000ff;
+                uint8_t b = (rgb) & 0x0000ff;
+                if(r > b && r > 70){
 
-                //                if( (abs(msg_pcl.points[i].x) < 0.2
-                //                     && abs(msg_pcl.points[i].y) < 0.2
-                //                     && abs(msg_pcl.points[i].z) < 0.2)
-                //                        &&((abs(msg_pcl.points[i].x)*abs(msg_pcl.points[i].x)+ abs(msg_pcl.points[i].y)*abs(msg_pcl.points[i].y)+abs(msg_pcl.points[i].z)*abs(msg_pcl.points[i].z)< half_palm_length*half_palm_length) ||
-                //                           (abs(msg_pcl.points[i].x - hand1_kp.points[1].x) < finger_length
-                //                            && abs(msg_pcl.points[i].y - hand1_kp.points[1].y) < finger_length
-                //                            && abs(msg_pcl.points[i].z - hand1_kp.points[1].z) < finger_length)||
-                //                           (abs(msg_pcl.points[i].x - hand1_kp.points[2].x) < finger_length
-                //                            && abs(msg_pcl.points[i].y - hand1_kp.points[2].y) < finger_length
-                //                            && abs(msg_pcl.points[i].z - hand1_kp.points[2].z) < finger_length)||
-                //                           (abs(msg_pcl.points[i].x - hand1_kp.points[3].x) < finger_length
-                //                            && abs(msg_pcl.points[i].y - hand1_kp.points[3].y) < finger_length
-                //                            && abs(msg_pcl.points[i].z - hand1_kp.points[3].z) < finger_length)||
-                //                           (abs(msg_pcl.points[i].x - hand1_kp.points[4].x) < finger_length
-                //                            && abs(msg_pcl.points[i].y - hand1_kp.points[4].y) < finger_length
-                //                            && abs(msg_pcl.points[i].z - hand1_kp.points[4].z) < finger_length)||
-                //                           (abs(msg_pcl.points[i].x - hand1_kp.points[5].x) < finger_length
-                //                            && abs(msg_pcl.points[i].y - hand1_kp.points[5].y) < finger_length
-                //                            && abs(msg_pcl.points[i].z - hand1_kp.points[5].z) < finger_length))
-                //                        ){
-
-                handcloud.push_back(msg_pcl.points[i]);
-                int x = int(msg_pcl.points[i].x * 1000);
-                int y = int(msg_pcl.points[i].y * 1000);
-                int z = int(msg_pcl.points[i].z * 1000);
-                int row = y/resolution + imageSize/2;
-                int col = x/resolution + imageSize/2;
-                int depth = z/resolution + imageSize/2;
-                //std::cout<<"row col depth:"<<row<<" "<<col<<" "<<depth<<endl;
-                if( row < imageSize && col < imageSize){
-                    Hand_DepthMat.at<unsigned char>(row, col) = depth;
+                    handcloud.push_back(msg_pcl.points[i]);
+                    int x = int(msg_pcl.points[i].x * 1000);
+                    int y = int(msg_pcl.points[i].y * 1000);
+                    int z = int(msg_pcl.points[i].z * 1000);
+                    int row = y/resolution + imageSize/2;
+                    int col = x/resolution + imageSize/2;
+                    int depth = z/resolution + imageSize/2;
+                    //std::cout<<"row col depth:"<<row<<" "<<col<<" "<<depth<<endl;
+                    if( row < imageSize && col < imageSize){
+                        Hand_DepthMat.at<unsigned char>(row, col) = depth;
+                    }
                 }
 
             }
@@ -224,10 +209,10 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
             labelflag[i] = 1;
             if(labelPointXYZ[i].size() == 0)
                 labelflag[i] = 0;
-            std::cout << "Size of " << i << ": " << labelPointXYZ[i].size() << std::endl;
+            //std::cout << "Size of " << i << ": " << labelPointXYZ[i].size() << std::endl;
         }
         for(int i = 0; i < labelflag.size(); ++i){
-            std::cout << "Label flag: " << labelflag[i] << std::endl;
+            //std::cout << "Label flag: " << labelflag[i] << std::endl;
         }
 
         ///////////////////////////////////////////////////////////
@@ -237,9 +222,9 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
 
         //read in leap motion oberservation
         Leap_hand.set_joints_positions(hand1_kp);
-//        Hand_model.set_joints_positions(hand1_kp);
-//        Hand_model.get_parameters();
-//        Hand_model.get_joints_positions();
+        //        Hand_model.set_joints_positions(hand1_kp);
+        //        Hand_model.get_parameters();
+        //        Hand_model.get_joints_positions();
 
         Hand_model.set_parameters();
         Hand_model.get_joints_positions();
@@ -302,71 +287,83 @@ void Finger_tracking_Node::syncedCallback(const PointCloud2ConstPtr& hand_kp_pte
 
         //        //        //////////////    End of finger fitting 3   /////////////////////
 
-//                //////////////////   Finger fitting 4 ///////////////////////////
-//                        //    fitting4: Searching for intersection
-//                Hand_model.finger_fitting4(Hand_DepthMat,LabelMat, resolution, 0);
-//                //Hand_model.constrain_based_smooth( 2 );
-//                Hand_model.finger_fitting3(labelPointXYZ, 2);
-//                //Hand_model.constrain_based_smooth( 3 );
+        //                //////////////////   Finger fitting 4 ///////////////////////////
+        //                        //    fitting4: Searching for intersection
+        //                Hand_model.finger_fitting4(Hand_DepthMat,LabelMat, resolution, 0);
+        //                //Hand_model.constrain_based_smooth( 2 );
+        //                Hand_model.finger_fitting3(labelPointXYZ, 2);
+        //                //Hand_model.constrain_based_smooth( 3 );
 
-//        ////////////    End of finger fitting 4   /////////////////////
+        //        ////////////    End of finger fitting 4   /////////////////////
 
-//        ////////////////   Finger fitting 5 ///////////////////////////
-//            //fitting5: Intersection area ransac
-//        Hand_model.finger_fitting5(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ);
-//        Hand_model.constrain_based_smooth( 3 );
+        //        ////////////////   Finger fitting 5 ///////////////////////////
+        //            //fitting5: Intersection area ransac
+        //        Hand_model.finger_fitting5(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ);
+        //        Hand_model.constrain_based_smooth( 3 );
 
-//        ////////////    End of finger fitting 5   /////////////////////
+        //        ////////////    End of finger fitting 5   /////////////////////
 
-//                ////////////////   Finger fitting 6 ///////////////////////////
-//                    //fitting5: Intersection area ransac
-//        if(labelflag[5]+labelflag[6]+labelflag[7] == 3)
-//                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 1);
-//        else{
-//            ;
-//        }
-//        if(labelflag[8]+labelflag[9]+labelflag[10] == 3)
-//                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 2);
-//        else{
-//            ;
-//        }
-
-
-//        if(labelflag[11]+labelflag[12]+labelflag[13] == 3)
-//                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 3);
-//        else{
-//            ;
-//        }
+        //                ////////////////   Finger fitting 6 ///////////////////////////
+        //                    //fitting6: Intersection area ransac
+        //        if(labelflag[5]+labelflag[6]+labelflag[7] == 3)
+        //                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 1);
+        //        else{
+        //            ;
+        //        }
+        //        if(labelflag[8]+labelflag[9]+labelflag[10] == 3)
+        //                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 2);
+        //        else{
+        //            ;
+        //        }
 
 
-//        if(labelflag[14]+labelflag[15]+labelflag[16] == 3)
-//                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 4);
-//        else{
-//            ;
-//        }
+        //        if(labelflag[11]+labelflag[12]+labelflag[13] == 3)
+        //                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 3);
+        //        else{
+        //            ;
+        //        }
 
 
-//        if(labelflag[17]+labelflag[18]+labelflag[19] == 3)
-//                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 5);
-//        else{
-//            ;
-//        }
+        //        if(labelflag[14]+labelflag[15]+labelflag[16] == 3)
+        //                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 4);
+        //        else{
+        //            ;
+        //        }
 
 
-//                Hand_model.constrain_based_smooth( 3 );
+        //        if(labelflag[17]+labelflag[18]+labelflag[19] == 3)
+        //                Hand_model.finger_fitting6(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, 5);
+        //        else{
+        //            ;
+        //        }
 
-//                ////////////    End of finger fitting 6   /////////////////////
 
-                ////////////////   Finger fitting 7 ///////////////////////////
-                    //fitting5: Intersection area ransac
-                vector<int> failed;
-                Hand_model.finger_fitting7(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, failed);
+        //                Hand_model.constrain_based_smooth( 3 );
 
-                //vector<Point3d> newpoint;
-                //Hand_model.bp_kinematic_constrain(failed, newpoint);
-                //Hand_model.constrain_based_smooth( 3 );
+        //                ////////////    End of finger fitting 6   /////////////////////
 
-                ////////////    End of finger fitting 7   /////////////////////
+        //        ////////////////   Finger fitting 7 ///////////////////////////
+        //            //fitting7: Intersection area ransac
+        //        vector<int> failed;
+        //        Hand_model.finger_fitting7(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, failed);
+
+        //        //Hand_model.constrain_based_smooth( 3 );
+
+        //        ////////////    End of finger fitting 7   /////////////////////
+
+
+        ////////////////   Finger fitting 8 ///////////////////////////
+        //fitting8: Intersection area ransac
+        vector<int> failed;
+        vector<Point3d> newpoints;
+        Hand_model.finger_fitting8(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, failed, newpoints);
+        Hand_model.bp_palm(failed,newpoints);
+        Hand_model.get_joints_positions();
+        Hand_model.finger_fitting7(Hand_DepthMat,LabelMat, resolution, 15, labelPointXYZ, failed);
+        //Hand_model.bp_kinematic_constrain(failed, newpoint);
+        Hand_model.constrain_based_smooth( 3 );
+
+        ////////////    End of finger fitting 8   /////////////////////
 
 
 
